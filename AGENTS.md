@@ -1,3 +1,10 @@
 # Project rules
 
-Keep this a local learning project. Use Python's standard library and manual CAD data until a separately agreed feature needs more. Bind to 127.0.0.1; preserve Host and Origin validation. Never add trading, brokerage credentials or investment recommendations implicitly. Keep actual holdings and database backups outside Git. Add tests for meaningful calculation and persistence behavior. Explain weekly changes with at most three concepts and one small user exercise. Record only delivered features as résumé evidence. Public GitHub creation/push or deployment requires user authorization. A separate reviewer must assess substantial changes.
+Two versions live here: the public web app in `docs/` (GitHub Pages) and the original local Python app (`portfolio.py`, `static/`).
+
+- Never commit real holdings, API keys or database files. The web app keeps them in the browser only; the Python app keeps SQLite outside the repo.
+- Keep `docs/calc.js` free of DOM code and covered by `tests/calc.test.js`. Add a test for every calculation change.
+- Market data comes from Alpha Vantage's free plan (25 requests/day). Respect caching and the daily counter; never make a request per keystroke.
+- No trading, brokerage logins or investment recommendations.
+- Plain HTML/CSS/JS, no build step, so GitHub Pages can serve `docs/` directly.
+- Describe the project honestly as AI-assisted. Only list delivered features on the résumé.

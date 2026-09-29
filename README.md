@@ -1,37 +1,50 @@
 # Portfolio Lab
 
-A local investing portfolio tracker built with Python, SQLite and browser JavaScript. Add or edit manual CAD holdings; inspect cost basis, position value, unrealized gain/loss and allocation; export a JSON snapshot. No accounts, API keys or packages are required.
+Track TSX and US holdings in Canadian dollars with live (delayed) quotes, daily price charts, day change, unrealized gain/loss and allocation.
 
-## Run on a Mac
+**Live app:** https://povolom.github.io/Investing-Portfolio/
 
-Requires Python 3.9 or newer. From this directory:
+Built by [Marcantonio Povolo](https://marcantoniopovolo.com), a Computer Engineering student at Toronto Metropolitan University, as an AI-assisted learning project.
 
-```sh
-python3 portfolio.py
-```
+## Features
 
-Open **http://127.0.0.1:8787**. Stop with Control-C. If the port is occupied, use `python3 portfolio.py --port 8788` and open that port instead.
+- **Portfolio in CAD.** TSX holdings (`SHOP.TRT`) are priced in CAD; US holdings (`AAPL`) convert at the live USD/CAD rate.
+- **Live quotes** from Alpha Vantage: price, day change, previous close and day range.
+- **Price history chart** for each holding (last 100 trading days) with your average cost marked.
+- **Allocation donut**, per-position weight, and unrealized gain/loss in dollars and percent.
+- **Market watch** strip for up to 6 symbols (default XIU.TRT, SPY, QQQ).
+- **Symbol search** that suggests TSX and US listings as you type.
+- **Private by design.** No accounts or server. Your API key and holdings are saved only in your own browser (localStorage). Export and import JSON to move them between devices.
+- **Demo mode.** Visitors without a key see fictional sample holdings with sample prices.
 
-Data persists at `~/Library/Application Support/Investing-Portfolio/portfolio.sqlite3`, outside this repository. To back up all data, stop the app and copy that file. Restore by stopping the app and replacing the database with your backup. JSON export is a readable snapshot; an import feature is not implemented. For a disposable demo use `python3 portfolio.py --db /tmp/portfolio-demo.sqlite3`.
+## Use it
 
-```sh
-python3 -m unittest -v
-```
+1. Open the live app.
+2. Get a free API key at https://www.alphavantage.co/support/#api-key.
+3. Click **Connect live data**, paste the key and save.
+4. Add holdings: symbol, shares, average cost and the currency you paid in.
 
-## Model and limits
+The free plan allows 25 requests a day and quotes are delayed, so the app caches quotes for 30 minutes, the exchange rate for 6 hours and charts for 12 hours, and shows how many requests you've used today.
 
-Each symbol represents one aggregated position. Saving the same symbol replaces its shares, average cost and current manual price. Changing a symbol creates a new position; remove the old one if renaming. All values must already be in CAD. Last saved time is UTC and records editing, not a quote timestamp. Values use decimal arithmetic and are rounded to cents for display. Allocation percentages may sum to 99.99 or 100.01 after rounding.
+## How it's built
 
-- Cost = shares × average cost; value = shares × manual price.
-- Unrealized gain/loss = value − cost; allocation = position value ÷ total value.
-- No live prices, trades, cash, fees, dividends, realized gains, tax calculations, FX conversion or historical returns. Displayed gain is not total investment performance.
+| Path | What it is |
+|---|---|
+| `docs/index.html`, `docs/style.css` | The web app (served by GitHub Pages from `/docs`). |
+| `docs/calc.js` | Pure portfolio maths and API response parsing, with no browser code, so it can be tested in Node. |
+| `docs/app.js` | UI, data fetching, caching and rate-limit handling. |
+| `tests/calc.test.js` | Calculation tests: `node tests/calc.test.js` |
+| `portfolio.py`, `static/`, `test_portfolio.py` | The original local version (Python standard library + SQLite). Run with `python3 portfolio.py`, test with `python3 -m unittest -v`. |
 
-Only this Mac can connect by default. Host and Origin checks reject other website origins and unexpected hosts. This is a personal development app, not a multi-user hosted service. Source is maintained in the private GitHub repository https://github.com/povolom/Investing-Portfolio. No public deployment has been created.
+## Maths
 
-## First learning checkpoint
+- Cost = shares × average cost, converted to CAD at the current USD/CAD rate when bought in USD.
+- Value = shares × latest price, converted to CAD for US listings.
+- Unrealized gain = value − cost. Weight = position value ÷ portfolio value.
+- Day change = shares × (price − previous close).
 
-Three concepts: **Decimal** avoids binary floating-point surprises in financial arithmetic; **SQLite** persists rows after restarting; **same-origin requests** constrain browser writes to this app.
+Not included: fees, dividends, cash, taxes, realized gains, or historical FX rates for your purchases. This is a learning project and not investment advice.
 
-Tiny task: enter a fictional `EXAMPLE` holding with 2.5 shares, CAD 10 average cost and CAD 12 price. Predict cost, value and gain before saving. Then lower the price to CAD 8 and explain what changes.
+## Publish on GitHub Pages
 
-Next manageable improvements: price timestamps and stale-price badges; CSV import with preview and duplicate handling; an allocation chart with accessible text. Build these one at a time, review and test each, then use only completed work as portfolio evidence.
+Repository **Settings → Pages → Build and deployment → Deploy from a branch**, branch `main`, folder `/docs`. GitHub Pages on a free account requires the repository to be public. Personal holdings are never stored in the repository.
