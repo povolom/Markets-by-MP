@@ -2,7 +2,9 @@
 
 Track TSX and US holdings in Canadian dollars with live (delayed) quotes, daily price charts, day change, unrealized gain/loss and allocation.
 
-**Live app:** https://povolom.github.io/Investing-Portfolio/
+**Live app:** https://povolom.github.io/Investing-Portfolio/portfolio-lab/
+
+The site root, https://povolom.github.io/Investing-Portfolio/, is a small projects homepage that also lists my next project, a GO Train commute planner (coming soon).
 
 Built by [Marcantonio Povolo](https://marcantoniopovolo.com), a Computer Engineering student at Toronto Metropolitan University, as an AI-assisted learning project.
 
@@ -30,9 +32,11 @@ The free plan allows 25 requests a day and quotes are delayed, so the app caches
 
 | Path | What it is |
 |---|---|
-| `docs/index.html`, `docs/style.css` | The web app (served by GitHub Pages from `/docs`). |
-| `docs/calc.js` | Pure portfolio maths and API response parsing, with no browser code, so it can be tested in Node. |
-| `docs/app.js` | UI, data fetching, caching and rate-limit handling. |
+| `docs/index.html`, `docs/hub.css` | Projects homepage (served by GitHub Pages from `/docs`). |
+| `docs/go-train/` | GO Train commute planner page (coming soon). |
+| `docs/portfolio-lab/index.html`, `docs/portfolio-lab/style.css` | The Portfolio Lab web app. Add `?embed=1` to hide the back link when it is shown inside another site. |
+| `docs/portfolio-lab/calc.js` | Pure portfolio maths and API response parsing, with no browser code, so it can be tested in Node. |
+| `docs/portfolio-lab/app.js` | UI, data fetching, caching and rate-limit handling. |
 | `tests/calc.test.js` | Calculation tests: `node tests/calc.test.js` |
 | `portfolio.py`, `static/`, `test_portfolio.py` | The original local version (Python standard library + SQLite). Run with `python3 portfolio.py`, test with `python3 -m unittest -v`. |
 

@@ -26,6 +26,7 @@ button,input,select{font:inherit;color:inherit}
 .brand{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:600;font-size:18px;color:var(--text);text-decoration:none}
 .mark{width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--blue),#a894ff);position:relative}
 .mark::after{content:'';position:absolute;inset:6px 5px 5px 5px;border-left:2px solid var(--bg);border-bottom:2px solid var(--bg);transform:skewX(-12deg)}
+.back{font-size:14px;text-decoration:none;margin-right:4px}.embed .back{display:none}
 .bar-right{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .badge{font:500 11px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;padding:6px 9px;border-radius:999px;border:1px solid var(--warn);color:var(--warn)}
 .badge.live{border-color:var(--up);color:var(--up)}
