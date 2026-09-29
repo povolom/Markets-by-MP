@@ -2,11 +2,11 @@
 
 Track TSX and US holdings in Canadian dollars with live (delayed) quotes, daily price charts, day change, unrealized gain/loss and allocation.
 
-**Live app:** https://povolom.github.io/Investing-Portfolio/portfolio-lab/
+**Live app:** https://povolom.github.io/Investing-Portfolio-Project/portfolio-lab/
 
-The site root, https://povolom.github.io/Investing-Portfolio/, is a small projects homepage that also lists my next project, a GO Train commute planner (coming soon).
+The site root, https://povolom.github.io/Investing-Portfolio-Project/, is a small projects homepage that also lists my next project, a GO Train commute planner (coming soon, in its own repo: https://github.com/povolom/GO-Train-Planner).
 
-Built by [Marcantonio Povolo](https://marcantoniopovolo.com), a Computer Engineering student at Toronto Metropolitan University, as an AI-assisted learning project.
+Built by [Marcantonio Povolo](https://marcantoniopovolo.com), a Computer Engineering student at Toronto Metropolitan University, as a vibe-coded learning project (AI writes most of the code; I review, test and extend it).
 
 ## Features
 
@@ -33,7 +33,6 @@ The free plan allows 25 requests a day and quotes are delayed, so the app caches
 | Path | What it is |
 |---|---|
 | `docs/index.html`, `docs/hub.css` | Projects homepage (served by GitHub Pages from `/docs`). |
-| `docs/go-train/` | GO Train commute planner page (coming soon). |
 | `docs/portfolio-lab/index.html`, `docs/portfolio-lab/style.css` | The Portfolio Lab web app. Add `?embed=1` to hide the back link when it is shown inside another site. |
 | `docs/portfolio-lab/calc.js` | Pure portfolio maths and API response parsing, with no browser code, so it can be tested in Node. |
 | `docs/portfolio-lab/app.js` | UI, data fetching, caching and rate-limit handling. |
