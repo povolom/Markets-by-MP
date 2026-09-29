@@ -1,6 +1,6 @@
 // Run: node tests/calc.test.js
 const assert = require('assert');
-const C = require('../docs/portfolio-lab/calc.js');
+const C = require('../docs/investing-tracker/calc.js');
 assert.strictEqual(C.currencyFor('SHOP.TRT'), 'CAD');
 assert.strictEqual(C.currencyFor('AAPL'), 'USD');
 assert.throws(() => C.parseAmount('abc', 'Shares'));

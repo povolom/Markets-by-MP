@@ -1,8 +1,8 @@
-// Portfolio Lab: browser app. Data lives in localStorage on this device only.
+// Investing Tracker: browser app. Data lives in localStorage on this device only.
 (function () {
   'use strict';
   const C = window.Calc;
-  const KEY = 'portfolio-lab-v1';
+  const KEY = 'investing-tracker-v1';
   const DAILY_LIMIT = 25;
   const QUOTE_TTL = 30 * 60 * 1000;      // re-fetch a quote after 30 minutes
   const FX_TTL = 6 * 60 * 60 * 1000;     // USD/CAD every 6 hours
@@ -316,7 +316,7 @@
   });
   $('export').addEventListener('click', () => {
     const data = JSON.stringify({ exportedAt: new Date().toISOString(), holdings: S.holdings, watch: S.watch }, null, 2);
-    const a = el('a', { href: URL.createObjectURL(new Blob([data], { type: 'application/json' })), download: 'portfolio-lab.json' }); a.click();
+    const a = el('a', { href: URL.createObjectURL(new Blob([data], { type: 'application/json' })), download: 'investing-tracker.json' }); a.click();
     flash('Exported holdings (your API key is not included).', 's-msg');
   });
   $('import').addEventListener('change', async e => {

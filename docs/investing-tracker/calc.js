@@ -1,4 +1,4 @@
-// Portfolio Lab: pure calculation helpers (no DOM). Loaded in the browser and in Node tests.
+// Investing Tracker: pure calculation helpers (no DOM). Loaded in the browser and in Node tests.
 (function (root) {
   'use strict';
 
