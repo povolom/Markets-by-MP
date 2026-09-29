@@ -1,6 +1,6 @@
 # Project rules
 
-Two versions live here: the public site in `docs/` (GitHub Pages: a projects homepage, the Investing Tracker app in `docs/investing-tracker/` that also links to the GO Train planner, which lives in its own repo) and the original local Python app (`portfolio.py`, `static/`).
+Two versions live here: the public site in `docs/` (GitHub Pages: a projects homepage, the Investing Tracker app in `docs/investing-tracker/` that also links to the GO Train planner and the photography gallery, which live in their own repos) and the original local Python app in `python-app/`.
 
 - Never commit real holdings, API keys or database files. The web app keeps them in the browser only; the Python app keeps SQLite outside the repo.
 - Keep `docs/investing-tracker/calc.js` free of DOM code and covered by `tests/calc.test.js`. Add a test for every calculation change.

@@ -4,7 +4,7 @@ Track TSX and US holdings in Canadian dollars with live (delayed) quotes, daily 
 
 **Live app:** https://povolom.github.io/Investing-Portfolio-Project/investing-tracker/
 
-The site root, https://povolom.github.io/Investing-Portfolio-Project/, is a small projects homepage that also lists my next project, a GO Train commute planner (coming soon, in its own repo: https://github.com/povolom/GO-Train-Planner).
+The site root, https://povolom.github.io/Investing-Portfolio-Project/, is a small projects homepage that also lists my upcoming projects, a [GO Train commute planner](https://github.com/povolom/GO-Train-Planner) and a [photography gallery](https://github.com/povolom/Photography-Gallery), which live in their own repos.
 
 Built by [Marcantonio Povolo](https://marcantoniopovolo.com), a Computer Engineering student at Toronto Metropolitan University, as a learning project. I decide what it does and review and test each change; AI coding tools help write the code.
 
@@ -37,7 +37,7 @@ The free plan allows 25 requests a day and quotes are delayed, so the app caches
 | `docs/investing-tracker/calc.js` | Pure portfolio maths and API response parsing, with no browser code, so it can be tested in Node. |
 | `docs/investing-tracker/app.js` | UI, data fetching, caching and rate-limit handling. |
 | `tests/calc.test.js` | Calculation tests: `node tests/calc.test.js` |
-| `portfolio.py`, `static/`, `test_portfolio.py` | The original local version (Python standard library + SQLite). Run with `python3 portfolio.py`, test with `python3 -m unittest -v`. |
+| `python-app/` | The original local version (Python standard library + SQLite) that Investing Tracker grew out of. Run with `cd python-app && python3 portfolio.py`; test with `python3 -m unittest -v`. |
 
 ## Maths
 
