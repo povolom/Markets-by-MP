@@ -50,3 +50,6 @@ h2{font-size:24px}
 
 .foot{border-top:1px solid var(--line);padding:22px 0 30px;color:var(--muted);font-size:14px}
 .foot p{margin:0}
+
+/* Drawn arrow icons (arrow characters render as emoji on some phones) */
+.arrow{display:inline-block;width:.9em;height:.9em;vertical-align:-.1em}

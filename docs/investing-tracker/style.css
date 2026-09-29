@@ -107,3 +107,6 @@ dialog::backdrop{background:#000a}
 @media (max-width:900px){.summary{grid-template-columns:1fr 1fr}.summary .big{grid-column:1/-1}.grid{grid-template-columns:1fr}}
 @media (max-width:560px){.wrap{padding-inline:16px}.summary{grid-template-columns:1fr}form#form{grid-template-columns:1fr}.bar-right .ghost{padding:8px 10px}.chip{min-width:150px}}
 @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+
+/* Drawn arrow icons (arrow characters render as emoji on some phones) */
+.arrow{display:inline-block;width:.9em;height:.9em;vertical-align:-.1em}
