@@ -1,4 +1,4 @@
-// Investing Tracker: pure calculation helpers (no DOM). Loaded in the browser and in Node tests.
+// Markets by MP: pure calculation helpers (no DOM). Loaded in the browser and in Node tests.
 (function (root) {
   'use strict';
 
@@ -69,6 +69,40 @@
     };
   }
 
+  // Portfolio value over time, in CAD, from each holding's daily closes.
+  // series: {SYMBOL: [[date, close], ...]}. On days a symbol has no close (holidays differ between
+  // Toronto and New York), its last known close is carried forward. Days before every priced holding
+  // has data are skipped, so the line never jumps when a holding "appears".
+  function portfolioHistory(holdings, series, usdcad) {
+    const held = holdings.filter(h => series[h.symbol] && series[h.symbol].length);
+    if (!held.length) return [];
+    const dates = [...new Set(held.flatMap(h => series[h.symbol].map(p => p[0])))].sort();
+    const idx = Object.fromEntries(held.map(h => [h.symbol, 0]));
+    const last = {};
+    const out = [];
+    for (const d of dates) {
+      for (const h of held) {
+        const pts = series[h.symbol];
+        while (idx[h.symbol] < pts.length && pts[idx[h.symbol]][0] <= d) { last[h.symbol] = pts[idx[h.symbol]][1]; idx[h.symbol]++; }
+      }
+      if (held.every(h => last[h.symbol] != null)) {
+        const v = held.reduce((sum, h) => sum + toCAD(h.shares * last[h.symbol], currencyFor(h.symbol), usdcad), 0);
+        if (Number.isFinite(v)) out.push([d, cents(v)]);
+      }
+    }
+    return out;
+  }
+
+  // The last `days` calendar days of a [[date, value]] list (all of it when days is 0).
+  function lastDays(points, days, today) {
+    if (!days || !points.length) return points;
+    const end = new Date((today || points[points.length - 1][0]) + 'T00:00:00Z');
+    end.setUTCDate(end.getUTCDate() - days);
+    const from = end.toISOString().slice(0, 10);
+    const cut = points.filter(p => p[0] >= from);
+    return cut.length >= 2 ? cut : points.slice(-2);
+  }
+
   // Alpha Vantage response parsers. Return null when the payload isn't what we expect.
   function parseQuote(json) {
     const q = json && json['Global Quote'];
@@ -92,6 +126,25 @@
   function parseSearch(json) {
     return ((json && json.bestMatches) || []).map(m => ({ symbol: m['1. symbol'], name: m['2. name'], region: m['4. region'], currency: m['8. currency'] }));
   }
+  // Finnhub (US stocks, live). /quote returns {c: current, d: change, dp: change %, h, l, o, pc: previous close, t: unix time}.
+  function parseFinnhubQuote(json) {
+    if (!json || !Number.isFinite(json.c) || json.c === 0) return null; // Finnhub answers 0s for unknown symbols
+    return {
+      price: json.c, change: json.d, changePct: json.dp, high: json.h, low: json.l, open: json.o, prevClose: json.pc,
+      latestDay: json.t ? new Date(json.t * 1000).toISOString().slice(0, 10) : null,
+    };
+  }
+  // Finnhub /search: keep plain US listings (no exchange suffix).
+  function parseFinnhubSearch(json) {
+    return ((json && json.result) || [])
+      .filter(m => m.symbol && !m.symbol.includes('.') && /Common Stock|ETP|ETF/i.test(m.type || ''))
+      .map(m => ({ symbol: m.symbol, name: m.description, region: 'United States', currency: 'USD' }));
+  }
+  // Frankfurter (USD to CAD, daily reference rate, no key): {base: "USD", date, rates: {CAD: 1.37}}.
+  function parseFrankfurter(json) {
+    const r = json && json.rates && Number(json.rates.CAD);
+    return r ? { rate: r, at: json.date } : null;
+  }
   function apiProblem(json) {
     if (!json) return 'No response from the data provider.';
     if (json.Note || json.Information) return 'The free data limit has been reached for now (25 requests a day). Cached prices are shown.';
@@ -99,6 +152,6 @@
     return null;
   }
 
-  const api = { currencyFor, parseAmount, validSymbol, toCAD, summarize, parseQuote, parseFx, parseDaily, parseSearch, apiProblem, cents };
+  const api = { currencyFor, parseAmount, validSymbol, toCAD, summarize, portfolioHistory, lastDays, parseQuote, parseFx, parseDaily, parseSearch, parseFinnhubQuote, parseFinnhubSearch, parseFrankfurter, apiProblem, cents };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.Calc = api;
 })(typeof window !== 'undefined' ? window : globalThis);

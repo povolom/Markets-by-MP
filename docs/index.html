@@ -2,67 +2,242 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#060b14">
-<title>Projects | Marcantonio Povolo</title>
-<meta name="description" content="Web apps by Marcantonio Povolo, a Computer Engineering student at TMU: Investing Tracker, a GO Train commute planner and a photography gallery.">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Markets by MP</title>
+<meta name="description" content="Markets by MP: track TSX and US holdings in Canadian dollars with delayed live prices, a portfolio chart and allocation. Your key and holdings stay in your browser.">
+<meta name="theme-color" content="#f6f8f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#08110e" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Markets">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <script>if (new URLSearchParams(location.search).has('embed')) document.documentElement.classList.add('embed');</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=Space+Grotesk:wght@500;600&family=JetBrains+Mono:wght@500&display=swap">
-<link rel="stylesheet" href="hub.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=Space+Grotesk:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
-<header class="bar">
-  <div class="wrap bar-row">
-    <a class="brand" href="./">Marcantonio Povolo</a>
-    <a class="back site-only" href="https://marcantoniopovolo.com">marcantoniopovolo.com <svg class="arrow" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M5 11 11 5M6 5h5v5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+
+<header class="top">
+  <div class="wrap top-row">
+    <a class="wordmark" href="./" aria-label="Markets by MP home">
+      <img src="icons/icon-192.png" alt="" width="28" height="28">
+      <span class="word">Markets</span><span class="by">by MP</span>
+    </a>
+    <div class="top-actions">
+      <span class="mode" id="mode-badge">Demo</span>
+      <button class="icon-btn" id="refresh" type="button" aria-label="Refresh prices" title="Refresh prices">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="icon-btn" id="open-about" type="button" aria-haspopup="dialog" aria-label="About Markets" title="About">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 11v6M12 7.5v.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+      <button class="icon-btn" id="open-settings" type="button" aria-haspopup="dialog" aria-label="Settings" title="Settings">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="7" r="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="8" cy="17" r="2" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+      </button>
+      <button class="btn primary add-desktop" id="open-add" type="button" aria-haspopup="dialog">Add holding</button>
+    </div>
   </div>
 </header>
 
 <main id="main" class="wrap">
-  <section class="hero">
-    <p class="eyebrow">Projects</p>
-    <h1>Web apps I'm building.</h1>
-    <p class="intro">I'm a Computer Engineering student at Toronto Metropolitan University. These are small products I build to practise planning, building and testing software end to end. I decide what each one does, use AI coding tools to write code faster, and review and test every change.</p>
+  <section class="hero" aria-labelledby="h-value">
+    <p class="label" id="h-value">Portfolio value</p>
+    <p class="value num" id="s-value">—</p>
+    <p class="change num" id="s-day">—</p>
+    <div class="chart-card">
+      <div class="chart" id="pchart" aria-live="polite"></div>
+      <div class="ranges" role="tablist" aria-label="Chart range" id="ranges">
+        <button type="button" role="tab" data-days="7">1W</button>
+        <button type="button" role="tab" data-days="30">1M</button>
+        <button type="button" role="tab" data-days="91" aria-selected="true">3M</button>
+        <button type="button" role="tab" data-days="0">Max</button>
+      </div>
+    </div>
+    <dl class="stats">
+      <div><dt>Total return</dt><dd class="num" id="s-gain">—</dd><dd class="sub" id="s-gainpct">—</dd></div>
+      <div><dt>Invested</dt><dd class="num" id="s-cost">—</dd><dd class="sub" id="s-count">—</dd></div>
+      <div><dt>USD / CAD</dt><dd class="num" id="s-fx">—</dd><dd class="sub" id="s-fxtime">—</dd></div>
+    </dl>
+    <div class="demo-note" id="demo-banner">
+      <p><b>This is a demo portfolio.</b> Sample prices, made-up holdings. Connect a free key to track your own; it stays in this browser.</p>
+      <button class="btn" type="button" id="banner-settings">Connect live data</button>
+    </div>
   </section>
 
-  <section class="cards" aria-label="Projects">
-    <article class="card">
-      <div class="card-top"><span class="num">01 / Investing app</span><span class="status">Live</span></div>
-      <h2>Investing Tracker</h2>
-      <p>Track TSX and US holdings in Canadian dollars with delayed live quotes, 100-day price charts, day change, unrealized gain and allocation. Your API key and holdings stay in your own browser. Visitors without a key see fictional demo holdings.</p>
-      <ul class="pills"><li>JavaScript</li><li>Alpha Vantage API</li><li>SVG charts</li><li>AI coding tools</li></ul>
-      <div class="actions">
-        <a class="button primary" href="investing-tracker/">Open the app</a>
-        <a class="button" href="https://github.com/povolom/Investing-Portfolio-Project" target="_blank" rel="noopener">View code <svg class="arrow" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M5 11 11 5M6 5h5v5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
-      </div>
-    </article>
+  <div class="grid">
+    <section class="card" aria-labelledby="h-holdings">
+      <div class="card-head"><h2 id="h-holdings">Holdings</h2><span class="sub" id="updated">—</span></div>
+      <ul class="list" id="rows"></ul>
+      <p class="empty" id="empty" hidden>No holdings yet. Tap <b>Add holding</b> to start.</p>
+    </section>
 
-    <article class="card">
-      <div class="card-top"><span class="num">02 / Product</span><span class="status soon">Coming soon</span></div>
-      <h2>GO Train commute planner</h2>
-      <p>A planner for students who commute by GO Train. It will line up your class schedule with GO departures and suggest the best train each day.</p>
-      <ul class="pills"><li>Product research</li><li>Transit data</li><li>Web app</li></ul>
-      <div class="actions">
-        <a class="button" href="https://povolom.github.io/GO-Train-Planner/">See the plan</a>
-      </div>
-    </article>
+    <div class="side">
+      <section class="card" aria-labelledby="h-alloc">
+        <div class="card-head"><h2 id="h-alloc">Allocation</h2><span class="sub" id="d-count">0 positions</span></div>
+        <div class="alloc-bar" id="alloc-bar" role="img" aria-label="Allocation"></div>
+        <ul class="legend" id="legend"></ul>
+      </section>
+      <section class="card" aria-labelledby="h-watch">
+        <div class="card-head"><h2 id="h-watch">Watchlist</h2><button class="link" type="button" id="edit-watch">Edit</button></div>
+        <ul class="list compact" id="watch"></ul>
+      </section>
+    </div>
+  </div>
 
-    <article class="card">
-      <div class="card-top"><span class="num">03 / Web design</span><span class="status soon">Coming soon</span></div>
-      <h2>Photography gallery</h2>
-      <p>A fast, responsive gallery for my photography, the work behind my two Arts Fest photography awards.</p>
-      <ul class="pills"><li>HTML</li><li>CSS</li><li>Photography</li></ul>
-      <div class="actions">
-        <a class="button" href="https://povolom.github.io/Photography-Gallery/">See the plan</a>
-      </div>
-    </article>
-  </section>
+  <p class="msg" id="msg" role="status" aria-live="polite"></p>
+
+  <footer class="foot">
+    <p>US prices from <a href="https://finnhub.io/" target="_blank" rel="noopener">Finnhub</a>. Toronto prices and charts from <a href="https://www.alphavantage.co/" target="_blank" rel="noopener">Alpha Vantage</a> (delayed). USD to CAD from <a href="https://frankfurter.dev/" target="_blank" rel="noopener">Frankfurter</a> (daily reference rate). Not investment advice: no fees, dividends, cash or taxes.</p>
+    <p><a href="https://marcantoniopovolo.com">Made by Marcantonio Povolo</a></p>
+  </footer>
 </main>
 
-<footer class="foot">
-  <div class="wrap"><p>Built by <a href="https://marcantoniopovolo.com" target="_blank" rel="noopener">Marcantonio Povolo</a>. Source on <a href="https://github.com/povolom/Investing-Portfolio-Project" target="_blank" rel="noopener">GitHub</a>.</p></div>
-</footer>
+<button class="fab" id="open-add-fab" type="button" aria-haspopup="dialog" aria-label="Add holding">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+</button>
+
+<dialog id="detail" class="sheet" aria-labelledby="d-title">
+  <div class="sheet-body">
+    <div class="sheet-head">
+      <div><h2 id="d-title">—</h2><p class="sub" id="d-name"></p></div>
+      <button class="icon-btn" type="button" data-close aria-label="Close">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <p class="value sm num" id="d-price">—</p>
+    <p class="change num" id="d-change">—</p>
+    <div class="chart" id="chart"></div>
+    <p class="sub" id="d-sub"></p>
+    <h3>Your position</h3>
+    <dl class="facts" id="position"></dl>
+    <h3>Today</h3>
+    <dl class="facts" id="facts"></dl>
+    <div class="row" id="d-actions" hidden>
+      <button class="btn" type="button" id="d-edit">Edit</button>
+      <button class="btn danger" type="button" id="d-remove">Remove</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="add" class="sheet" aria-labelledby="add-title">
+  <form id="form" class="sheet-body" novalidate>
+    <div class="sheet-head">
+      <h2 id="add-title">Add or update a holding</h2>
+      <button class="icon-btn" type="button" data-close aria-label="Close">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <label>Symbol
+      <div class="search"><input id="f-symbol" autocomplete="off" autocapitalize="characters" placeholder="SHOP.TRT or AAPL" required aria-describedby="sym-help"><ul id="suggest" class="suggest" role="listbox" hidden></ul></div>
+      <small id="sym-help">Toronto listings end in <b>.TRT</b> (TSX) or <b>.TRV</b> (TSX Venture). US listings have no suffix.</small>
+    </label>
+    <div class="two">
+      <label>Shares<input id="f-shares" inputmode="decimal" placeholder="10" required></label>
+      <label>Average cost per share<input id="f-cost" inputmode="decimal" placeholder="25.00" required></label>
+    </div>
+    <label>Paid in<select id="f-cur"><option>CAD</option><option>USD</option></select></label>
+    <p class="msg" id="f-msg" role="status" aria-live="polite"></p>
+    <div class="row end"><button class="btn" type="reset">Clear</button><button class="btn primary" type="submit">Save holding</button></div>
+  </form>
+</dialog>
+
+<dialog id="settings" class="sheet" aria-labelledby="set-title">
+  <form method="dialog" class="sheet-body">
+    <div class="sheet-head">
+      <h2 id="set-title">Settings</h2>
+      <button class="icon-btn" value="cancel" aria-label="Close">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <label>Finnhub API key <span class="sub">(live US prices)</span>
+      <input id="s-fh" autocomplete="off" spellcheck="false" placeholder="Paste your free Finnhub key">
+      <small>Free at <a href="https://finnhub.io/register" target="_blank" rel="noopener">finnhub.io</a>: 60 updates a minute, no daily cap. US stocks only.</small>
+    </label>
+    <label>Alpha Vantage API key <span class="sub">(Toronto prices and charts)</span>
+      <input id="s-key" autocomplete="off" spellcheck="false" placeholder="Paste your free Alpha Vantage key">
+      <small>Free at <a href="https://www.alphavantage.co/support/#api-key" target="_blank" rel="noopener">alphavantage.co</a>: delayed, 25 requests a day. Keys are saved only in this browser.</small>
+    </label>
+    <label>Watchlist symbols (comma-separated, up to 6)
+      <input id="s-watch" placeholder="XIU.TRT, SPY, QQQ">
+    </label>
+    <p class="sub" id="s-usage">—</p>
+    <div class="row wrapbtns">
+      <button type="button" class="btn" id="export">Export holdings</button>
+      <label class="btn file">Import holdings<input type="file" id="import" accept="application/json" hidden></label>
+      <button type="button" class="btn" id="load-demo">Copy demo holdings</button>
+      <button type="button" class="btn danger" id="clear">Clear my holdings</button>
+      <button type="button" class="btn" id="show-welcome">Show the setup guide</button>
+    </div>
+    <p class="msg" id="s-msg" role="status"></p>
+    <div class="row end"><button value="cancel" class="btn">Close</button><button value="save" class="btn primary" id="s-save">Save</button></div>
+  </form>
+</dialog>
+
+<dialog id="welcome" class="sheet welcome" aria-labelledby="w-title">
+  <div class="sheet-body">
+    <ol class="steps" aria-hidden="true"><li data-step="1"></li><li data-step="2"></li><li data-step="3"></li><li data-step="4"></li></ol>
+
+    <section class="wstep" data-step="1">
+      <img class="wicon" src="icons/icon-192.png" alt="" width="64" height="64">
+      <h2 id="w-title">Welcome to Markets</h2>
+      <p>See your TSX and US stocks together, in Canadian dollars: today's change, total return, allocation and a chart of your whole portfolio.</p>
+      <p class="sub">Live prices need a free key from Finnhub. It takes about a minute, and the next steps walk you through it.</p>
+      <div class="row end"><button type="button" class="btn" data-demo>Explore the demo first</button><button type="button" class="btn primary" data-next>Get started</button></div>
+    </section>
+
+    <section class="wstep" data-step="2" hidden>
+      <h2>Get your free Finnhub key</h2>
+      <p>Finnhub gives live US stock prices for free: up to 60 updates a minute, with no daily cap.</p>
+      <ol class="howto">
+        <li>Tap <b>Open Finnhub</b>. It opens in a new tab.</li>
+        <li>Sign up with your email (free, no card) and confirm it.</li>
+        <li>Your API key is on your Finnhub dashboard. Copy it.</li>
+      </ol>
+      <a class="btn primary wide" href="https://finnhub.io/register" target="_blank" rel="noopener">Open Finnhub</a>
+      <div class="row end"><button type="button" class="btn" data-back>Back</button><button type="button" class="btn primary" data-next>I have my key</button></div>
+    </section>
+
+    <section class="wstep" data-step="3" hidden>
+      <h2>Paste your Finnhub key</h2>
+      <label>Finnhub API key<input id="w-key" autocomplete="off" spellcheck="false" placeholder="Paste it here"></label>
+      <p class="sub">It's saved only in this browser and only ever sent to Finnhub. You can change it later in Settings.</p>
+      <p class="msg" id="w-msg" role="status" aria-live="polite"></p>
+      <div class="row end"><button type="button" class="btn" data-back>Back</button><button type="button" class="btn primary" id="w-save">Check and continue</button></div>
+    </section>
+
+    <section class="wstep" data-step="4" hidden>
+      <h2>Toronto stocks and charts <span class="sub">(optional)</span></h2>
+      <p>Finnhub's free plan covers US stocks only. For TSX prices and price charts, add a free Alpha Vantage key too. Those prices are delayed and limited to 25 requests a day, so Markets saves them up.</p>
+      <a class="btn wide" href="https://www.alphavantage.co/support/#api-key" target="_blank" rel="noopener">Get a free Alpha Vantage key</a>
+      <label>Alpha Vantage API key<input id="w-av" autocomplete="off" spellcheck="false" placeholder="Paste it here"></label>
+      <p class="msg" id="w-av-msg" role="status" aria-live="polite"></p>
+      <div class="row end"><button type="button" class="btn" id="w-skip">Skip for now</button><button type="button" class="btn primary" id="w-av-save">Check and finish</button></div>
+    </section>
+  </div>
+</dialog>
+
+<dialog id="about" class="sheet" aria-labelledby="about-title">
+  <div class="sheet-body prose">
+    <div class="sheet-head">
+      <h2 id="about-title">About Markets</h2>
+      <button class="icon-btn" type="button" data-close aria-label="Close">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <p>I wanted one place to see my TSX and US stocks together, in Canadian dollars, without signing up for anything. So I built it.</p>
+    <h3>How it works</h3>
+    <p>You add a symbol, how many shares you own and what you paid. Markets gets live US prices from Finnhub about once a minute, Toronto prices and daily history from Alpha Vantage, and the USD to CAD rate from Frankfurter. Then it works out your value, today's change, total return and allocation, and the portfolio chart adds up each holding's daily closes. Everything is saved in your own browser; nothing goes to a server of mine.</p>
+    <h3>What it won't do</h3>
+    <p>It won't trade, connect to a brokerage, or tell you what to buy. It doesn't count fees, dividends, cash or taxes, so total return here isn't your full investment performance.</p>
+    <p>Built with AI coding tools; I decide what it does and review and test each change. <a href="https://github.com/povolom/Markets-by-MP" target="_blank" rel="noopener">See the code</a> or go back to <a href="https://marcantoniopovolo.com">marcantoniopovolo.com</a>.</p>
+  </div>
+</dialog>
+
+<script src="calc.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
