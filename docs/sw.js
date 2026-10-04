@@ -1,7 +1,7 @@
 // Markets by MP service worker: keeps the app's own files so it opens offline.
 // It never caches price data or API calls; those always go to the network.
-const CACHE = 'markets-shell-v1';
-const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'calc.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
+const CACHE = 'markets-shell-v2';
+const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'calc.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'favicon.ico'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
