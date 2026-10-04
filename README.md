@@ -2,7 +2,7 @@
 
 Your TSX and US stocks together, in Canadian dollars: live US prices, today's change, total return, allocation and a chart of your whole portfolio. It installs as an app on a phone or computer and keeps your keys and holdings in your own browser.
 
-**Live:** https://markets.marcantoniopovolo.com (until that address is set up: https://povolom.github.io/Markets-by-MP/)
+**Coming soon** at https://markets.marcantoniopovolo.com. The app works; I’m testing it before opening it up.
 
 Built by [Marcantonio Povolo](https://marcantoniopovolo.com), a Computer Engineering student at Toronto Metropolitan University. I decide what it does and review and test each change; AI coding tools help write the code. It started as Portfolio Lab, then Investing Tracker.
 
@@ -18,13 +18,15 @@ No free source offers real-time Toronto prices, so TSX prices are delayed. Visit
 
 ## How it's built
 
-Plain HTML, CSS and JavaScript with no build step, served by GitHub Pages from `docs/`.
+Plain HTML, CSS and JavaScript with no build step. The app is in `app/` and isn’t published yet; Cloudflare serves `site/` (the coming-soon and project pages).
 
 | Path | What it is |
 |---|---|
-| `docs/index.html`, `docs/style.css` | The app's page and styles (light and dark) |
-| `docs/app.js` | Screens, data fetching, caching, request limits, the setup guide |
-| `docs/calc.js` | Pure maths and data parsing with no browser code, so it can be tested in Node |
-| `docs/sw.js`, `docs/manifest.webmanifest`, `docs/icons/` | What makes it installable and work offline |
+| `app/index.html`, `app/style.css` | The app's page and styles (light and dark) |
+| `app/app.js` | Screens, data fetching, caching, request limits, the setup guide |
+| `app/calc.js` | Pure maths and data parsing with no browser code, so it can be tested in Node |
+| `app/sw.js`, `app/manifest.webmanifest`, `app/icons/` | What makes it installable and work offline |
+| `site/` | What Cloudflare serves at markets.marcantoniopovolo.com: the coming-soon page (`index.html`), the project page (`about/`), shared styles (`page.css`), icons and favicon. Built by `build_app_pages.py` in my portfolio folder. |
+| `wrangler.jsonc` | Cloudflare Worker settings: serve `site/` at markets.marcantoniopovolo.com. Publish with `npx wrangler deploy`. |
 | `tests/calc.test.js` | Tests for `calc.js`: run `node tests/calc.test.js` |
 | `python-app/` | The original local version (Python and SQLite). Run with `cd python-app && python3 portfolio.py`; test with `python3 -m unittest -v` |

@@ -1,0 +1,8 @@
+// Cloudflare Worker settings for markets.marcantoniopovolo.com (static files from site/, no Worker code).
+{
+  "name": "markets-by-mp",
+  "compatibility_date": "2026-10-03",
+  "assets": { "directory": "./site" },
+  // Cloudflare creates the DNS record and HTTPS certificate for this subdomain on deploy.
+  "routes": [{ "pattern": "markets.marcantoniopovolo.com", "custom_domain": true }]
+}
