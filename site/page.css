@@ -1,7 +1,7 @@
 /* Shared styles for the "by MP" project pages, matching marcantoniopovolo.com. Built by build_app_pages.py. */
 :root{color-scheme:dark;--bg:#070d18;--panel:#101b2b;--text:#f0f5fb;--muted:#a8b8cc;--line:#263347;--display:'Space Grotesk',ui-sans-serif,system-ui,sans-serif;--body:'DM Sans',ui-sans-serif,system-ui,sans-serif}
 *{box-sizing:border-box}
-html{-webkit-text-size-adjust:100%}
+html{-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent;overflow-x:clip}
 body{margin:0;background:var(--bg);color:var(--text);font:17px/1.65 var(--body)}
 a{color:inherit}
 :focus-visible{outline:3px solid var(--accent);outline-offset:4px}
@@ -10,15 +10,16 @@ a{color:inherit}
 .arrow{width:.95em;height:.95em;flex:none}
 .top{border-bottom:1px solid var(--line);background:#070d18f0;position:sticky;top:0;z-index:4;backdrop-filter:blur(16px)}
 .row{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:72px}
-.brand{display:flex;align-items:center;gap:10px;text-decoration:none}
+.brand{display:flex;align-items:center;gap:10px;min-height:44px;text-decoration:none}
 .brand img{width:34px;height:34px;border-radius:9px}
 .brand b{font:600 20px var(--display);letter-spacing:-.03em}
 .brand span{font-size:13px;color:var(--muted)}
 .links{display:flex;gap:22px;font-size:14px}
-.links a{color:var(--muted);text-decoration:none;display:inline-block;padding:8px 0}
-.links a:hover,.links a[aria-current]{color:var(--text)}
+.links a{color:var(--muted);text-decoration:none;display:inline-block;min-width:44px;padding:12px 0;text-align:center}
+.links a[aria-current]{color:var(--text)}
+@media (hover:hover) and (pointer:fine){.links a:hover{color:var(--text)}.button:hover{border-color:var(--accent)}}
 .hero{position:relative;padding:72px 0 40px}
-.hero:before{content:'';position:absolute;inset:0 -30vw;z-index:-1;background:radial-gradient(ellipse at 80% 20%,color-mix(in srgb,var(--accent) 22%,transparent),transparent 55%)}
+.hero:before{content:'';position:absolute;inset:0 calc(50% - 50vw);z-index:-1;background:radial-gradient(ellipse at 80% 20%,color-mix(in srgb,var(--accent) 22%,transparent),transparent 55%)}
 .hero-icon{width:84px;height:84px;border-radius:22px;margin-bottom:26px;box-shadow:0 18px 40px #0007}
 .eyebrow{font:500 12px/1.5 var(--display);letter-spacing:.17em;text-transform:uppercase;color:var(--accent);margin:0 0 16px}
 h1,h2,h3{font-family:var(--display);font-weight:500;letter-spacing:-.045em;line-height:1.08;margin:0}
@@ -29,7 +30,8 @@ p{margin:0 0 16px;color:var(--muted)}
 .badge{display:inline-block;margin:0 0 18px;padding:5px 12px;border-radius:999px;border:1px solid color-mix(in srgb,var(--accent) 50%,transparent);background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--text);font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
 .actions{display:flex;flex-wrap:wrap;gap:12px;margin:30px 0 0}
 .button{display:inline-flex;align-items:center;justify-content:center;gap:14px;min-height:48px;padding:12px 20px;border:1px solid var(--line);border-radius:7px;background:transparent;color:var(--text);font:600 14px var(--body);text-decoration:none}
-.button:hover{border-color:var(--accent)}
+.button{transition:transform .12s ease-out,border-color .2s}
+.button:active:not([disabled]){transform:scale(.97)}
 .button.primary{background:var(--accent);border-color:var(--accent);color:#061320}
 .button[disabled]{opacity:.55;cursor:not-allowed}
 section.block{padding:40px 0;border-top:1px solid var(--line)}
@@ -43,5 +45,6 @@ ul.points,ol.points{margin:0;padding-left:22px;color:var(--muted)}
 .learned p{margin:0}
 .foot{border-top:1px solid var(--line);margin-top:40px;padding:28px 0 40px;font-size:13px;color:var(--muted)}
 .foot .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px}
-.foot a{color:var(--text)}
+.foot a{color:var(--text);display:inline-block;padding-block:13px;margin-block:-13px}
+@media (prefers-reduced-motion:reduce){.button{transition:none}.button:active:not([disabled]){transform:none}}
 @media(max-width:600px){.wrap{width:calc(100% - 32px)}.links{gap:14px}.links .hide-sm{display:none}.hero{padding:48px 0 28px}.intro{font-size:18px}}
