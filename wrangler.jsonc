@@ -1,8 +1,10 @@
-// Cloudflare Worker settings for markets.marcantoniopovolo.com (static files from site/, no Worker code).
+// Cloudflare Worker settings for markets.marcantoniopovolo.com.
+// site/ is the website; worker.js answers /api/ (everything that isn't a file in site/ reaches the Worker).
 {
   "name": "markets-by-mp",
+  "main": "worker.js",
   "compatibility_date": "2026-10-03",
-  "assets": { "directory": "./site" },
+  "assets": { "directory": "./site", "binding": "ASSETS" },
   // Cloudflare creates the DNS record and HTTPS certificate for this subdomain on deploy.
   "routes": [{ "pattern": "markets.marcantoniopovolo.com", "custom_domain": true }]
 }
