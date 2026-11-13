@@ -2,7 +2,7 @@
 
 Your TSX and US stocks together, in Canadian dollars: live US prices, today's change, total return, allocation and a chart of your whole portfolio. It installs as an app on a phone or computer and keeps your keys and holdings in your own browser.
 
-**Status:** coming soon at https://markets.marcantoniopovolo.com · [About the project](https://marcantoniopovolo.com/projects/markets.html) · Open source (MIT)
+**Status:** coming soon at https://markets.marcantoniopovolo.com · [About the project](https://marcantoniopovolo.com/projects/markets) · Open source (MIT)
 
 The app works; I'm testing it before opening it up. It started as Portfolio Lab, then Investing Tracker.
 
@@ -37,7 +37,7 @@ Then open http://localhost:8000. Tests: `node tests/calc.test.js`.
 | `app/sw.js`, `app/manifest.webmanifest`, `app/icons/` | What makes it installable and work offline |
 | `tests/calc.test.js` | Tests for `calc.js` |
 | `python-app/` | The original local version (Python and SQLite). Run with `cd python-app && python3 portfolio.py`; test with `python3 -m unittest -v` |
-| `site/` | The website at markets.marcantoniopovolo.com: the coming-soon page (`index.html`, `style.css`), icons and favicons. `about/` and `_redirects` send the old project page to [marcantoniopovolo.com/projects/markets.html](https://marcantoniopovolo.com/projects/markets.html) |
+| `site/` | The website at markets.marcantoniopovolo.com: the coming-soon page (`index.html`, `style.css`), icons and favicons. `about/` and `_redirects` send the old project page to [marcantoniopovolo.com/projects/markets.html](https://marcantoniopovolo.com/projects/markets) |
 | `worker.js` | The API: anything under `/api/` (for now `/api/status`). Everything else is served from `site/` |
 | `wrangler.jsonc` | Cloudflare settings: `site/` plus `worker.js` at markets.marcantoniopovolo.com |
 | `LICENSE` | MIT: free to use, change and share |

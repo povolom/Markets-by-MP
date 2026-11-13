@@ -5,7 +5,7 @@ const APP = {
   name: 'Markets by MP',
   status: 'coming soon',
   site: 'https://markets.marcantoniopovolo.com',
-  about: 'https://marcantoniopovolo.com/projects/markets.html',
+  about: 'https://marcantoniopovolo.com/projects/markets',
   code: 'https://github.com/povolom/Markets-by-MP',
 };
 
