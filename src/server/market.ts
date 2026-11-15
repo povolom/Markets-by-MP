@@ -39,6 +39,7 @@ export function createMarket(p: MarketDataProvider, providers: ProviderInfo[], o
     }
   };
 
+  let coverageCache: ReturnType<typeof svc.computeCoverage> | null = null;
   const svc = {
     provider: p, providers,
     instrument: inst,
@@ -121,7 +122,9 @@ export function createMarket(p: MarketDataProvider, providers: ProviderInfo[], o
       hits.sort((a, b) => o.sort === 'symbol' ? inst(a.instrumentId).symbol.localeCompare(inst(b.instrumentId).symbol) : o.sort === 'daily' ? Number(a.quote.changePct) - Number(b.quote.changePct) : Number(a.dropPct) - Number(b.dropPct));
       return hits;
     },
-    coverage() {
+    /** Summarizing 12,000+ listings is the most expensive thing the API does; it never changes while the Worker runs, so it's computed once. */
+    coverage() { return (coverageCache ??= svc.computeCoverage()); },
+    computeCoverage() {
       const list = p.instruments().filter(i => allowed(i.id));
       const by = (k: keyof Instrument) => { const m = new Map<string, number>(); for (const i of list) m.set(String(i[k]), (m.get(String(i[k])) ?? 0) + 1); return [...m].map(([key, count]) => ({ key, count })).sort((a, b) => b.count - a.count); };
       const live = providers.filter(i => i.provenance === 'production' && (opts.audience === 'app' || i.rights.apiRedistribution));
