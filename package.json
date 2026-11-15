@@ -1,7 +1,7 @@
 {
   "name": "markets-by-mp",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.1",
   "type": "module",
   "description": "Markets by MP: an investing platform and the Markets API that powers it.",
   "license": "MIT",
@@ -18,7 +18,8 @@
     "desktop:web": "vite build --config vite.desktop.config.ts",
     "desktop:web-dev": "vite --config vite.desktop.config.ts",
     "desktop:dev": "CARGO_TARGET_DIR=$HOME/.cache/markets-by-mp/tauri-target tauri dev",
-    "desktop:build": "CARGO_TARGET_DIR=$HOME/.cache/markets-by-mp/tauri-target tauri build"
+    "desktop:build": "CARGO_TARGET_DIR=$HOME/.cache/markets-by-mp/tauri-target tauri build",
+    "tauri": "tauri"
   },
   "dependencies": {
     "@hono/zod-openapi": "^1.6.3",

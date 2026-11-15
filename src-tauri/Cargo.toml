@@ -1,6 +1,6 @@
 [package]
 name = "markets-by-mp"
-version = "0.1.0"
+version = "0.2.1"
 description = "Markets by MP: your investing world, on your own computer."
 authors = ["Marcantonio Povolo"]
 license = "MIT"
