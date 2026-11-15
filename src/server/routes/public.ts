@@ -33,7 +33,7 @@ export function publicRoutes(pick: (c: any) => Market) {
   });
   app.openapi(createRoute({ method: 'get', path: '/stats', tags: ['Service'], summary: 'Public usage: desktop app downloads and API calls served', responses: ok(S.Any, 'Stats') }), async c => {
     const [downloads, apiCalls] = await Promise.all([
-      downloadStats(c.env.GITHUB_REPO ?? 'povolom/Markets-by-MP').catch(() => null),
+      downloadStats(c.env.GITHUB_REPO ?? 'povolom/Markets-by-MP', c.env.GITHUB_TOKEN).catch(() => null),
       c.env.ENVIRONMENT === 'desktop' ? Promise.resolve(null) : apiCallStats(c.env.DB).catch(() => null),
     ]);
     return json(c, { data: { downloads, apiCalls, asOf: new Date().toISOString() }, notes: ['Downloads are the GitHub Releases download counts for the Mac and Windows installers.', 'API calls count every request to the hosted Markets API (the web app and outside clients). The desktop app runs its own API locally and isn\'t counted.'] });

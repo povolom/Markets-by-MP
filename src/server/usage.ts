@@ -33,8 +33,9 @@ export async function apiCallStats(db: D1Database) {
 
 interface Release { tag_name: string; published_at: string; assets: { name: string; download_count: number }[] }
 /** Desktop app downloads from the repo's GitHub Releases (public data, cached for an hour). */
-export async function downloadStats(repo: string) {
-  const releases = await cachedJson<Release[]>(`https://api.github.com/repos/${repo}/releases?per_page=100`, 3600, { accept: 'application/vnd.github+json' });
+export async function downloadStats(repo: string, token?: string) {
+  // GitHub limits unauthenticated calls per IP, and Cloudflare's IPs are shared: an optional read-only token avoids that.
+  const releases = await cachedJson<Release[]>(`https://api.github.com/repos/${repo}/releases?per_page=100`, 3600, { accept: 'application/vnd.github+json', ...(token ? { authorization: `Bearer ${token}` } : {}) });
   const platform = (n: string) => /\.(dmg|app\.tar\.gz)$/i.test(n) || /darwin|mac|aarch64\.dmg|x64\.dmg/i.test(n) ? 'mac' : /\.(exe|msi)$/i.test(n) ? 'windows' : null;
   let mac = 0, windows = 0;
   for (const r of releases) for (const a of r.assets) { const p = platform(a.name); if (p === 'mac') mac += a.download_count; if (p === 'windows') windows += a.download_count; }
