@@ -519,3 +519,13 @@ a.locked:hover .locked-tag { color: var(--accent-text); border-color: color-mix(
 .other-listings .chip { text-decoration: none; }
 .other-listings .chip:hover { border-color: var(--border-strong); color: var(--text); }
 .other-listings.prominent .chip { background: var(--accent-soft); color: var(--accent-text); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+
+/* Desktop app: room for the macOS window controls, and drag the window by its top bar. */
+[data-desktop="mac"] .sidebar { padding-top: 46px; }
+[data-desktop] .topbar { -webkit-app-region: drag; }
+[data-desktop] .topbar button, [data-desktop] .topbar a, [data-desktop] .topbar input { -webkit-app-region: no-drag; }
+[data-desktop="mac"] .topbar { min-height: 56px; }
+@media (max-width: 720px) { [data-desktop="mac"] .topbar { padding-left: 84px; } }
+.signin-more summary { cursor: pointer; color: var(--text-2); font-size: 13.5px; font-weight: 600; text-align: center; list-style: none; padding: 4px 0; }
+.signin-more summary::-webkit-details-marker { display: none; }
+.signin-more summary:hover { color: var(--text); }

@@ -3,6 +3,8 @@
 //   Crypto: CoinGecko (real; display with attribution, not redistributed through the public API).
 //   FX: European Central Bank reference rates via Frankfurter (real; reusable with credit).
 // MARKET_DATA=offline uses demo data for everything (tests, working without a network).
+// MARKET_DATA=personal is the desktop app / self-hosted mode: one person, their own device, so stocks,
+// ETFs and indexes come from Yahoo Finance with no key (never used by the public showcase).
 // If a real provider fails, the API returns an error. It never substitutes demo data.
 import type { Instrument } from '../../domain/types';
 import { ApiError } from '../http';
@@ -10,6 +12,7 @@ import { US_MICS, type Alpaca } from './alpaca';
 import { eodhdTicker, type Eodhd } from './eodhd';
 import { questradeSymbol, type Questrade } from './questrade';
 import { alphaVantageSymbol, type AlphaVantage } from './alphavantage';
+import { createYahoo, yahooInfo, yahooSymbol } from './yahoo';
 import { createCoinGecko } from './coingecko';
 import { createDemoProvider } from './demo';
 import { createEcb } from './ecb';
@@ -30,18 +33,22 @@ export function getRegistry(env: { YAHOO_RESEARCH?: string; MARKET_DATA?: string
   demo ??= createDemoProvider();
   const d = demo;
   const offline = env.MARKET_DATA === 'offline';
+  const personal = env.MARKET_DATA === 'personal';
+  const yahoo = createYahoo();
+  const ySym = (id: string) => { const e = ENTRIES.get(id); return e ? yahooSymbol(e.inst) : null; };
   const cg = createCoinGecko(env.COINGECKO_API_KEY);
   const ecb = createEcb();
   const research = createYahooResearch(env.YAHOO_RESEARCH === 'enabled');
-  const src = (id: string): Source => offline ? 'demo' : ENTRIES.get(id)?.source ?? 'demo';
-  const infoFor: Record<Source, ProviderInfo> = { demo: d.info, coingecko: cg.info, ecb: ecb.info };
+  const src = (id: string): Source => offline ? 'demo' : personal && ySym(id) ? 'yahoo' : ENTRIES.get(id)?.source ?? 'demo';
+  const infoFor: Record<Source, ProviderInfo> = { demo: d.info, coingecko: cg.info, ecb: ecb.info, yahoo: yahooInfo };
   const cgId = (id: string) => { const e = ENTRIES.get(id); if (!e?.coingeckoId) throw new Error(`No CoinGecko ID for ${id}`); return e.coingeckoId; };
   const pair = (inst: Instrument) => inst.symbol.replace(/[^A-Z]/g, '').slice(0, 6);
 
   // Listings outside the curated catalogue have no free price source Markets may show to everyone. They stay
   // searchable, but prices unlock only through the viewer's own data key (US) or a future licensed feed.
   const locked = (id: string) => { const e = ENTRIES.get(id); return Boolean(e && e.source === 'demo' && !e.curated && (e.inst.assetClass === 'stock' || e.inst.assetClass === 'etf')); };
-  const guard = (id: string) => { if (locked(id)) throw lockedError(ENTRIES.get(id)!.inst); };
+  const guard = (id: string) => { if (!personal && locked(id)) throw lockedError(ENTRIES.get(id)!.inst); };
+  const inst = (id: string) => ENTRIES.get(id)!.inst;
 
   const market: MarketDataProvider = {
     info: { id: 'markets', name: 'Markets combined data', provenance: offline ? 'demo' : 'production', enabled: true, delaySeconds: null, assetClasses: d.info.assetClasses, rights: d.info.rights },
@@ -53,6 +60,7 @@ export function getRegistry(env: { YAHOO_RESEARCH?: string; MARKET_DATA?: string
       const s = src(id);
       if (s === 'coingecko') return cg.history(cgId(id));
       if (s === 'ecb') return ecb.history(pair(ENTRIES.get(id)!.inst));
+      if (s === 'yahoo') return yahoo.history(inst(id), ySym(id)!, new Date());
       return d.history(id);
     },
     async quote(id, now) {
@@ -60,25 +68,32 @@ export function getRegistry(env: { YAHOO_RESEARCH?: string; MARKET_DATA?: string
       const s = src(id); const inst = ENTRIES.get(id)!.inst;
       if (s === 'coingecko') return cg.quote(id, cgId(id));
       if (s === 'ecb') return ecb.quote(id, pair(inst), inst.currency);
+      if (s === 'yahoo') return yahoo.quote(inst, ySym(id)!, now);
       return d.quote(id, now);
     },
-    async dividends(id, now) { guard(id); return src(id) === 'demo' ? d.dividends(id, now) : []; },
-    async events(id, now) { guard(id); return src(id) === 'demo' ? d.events(id, now) : []; },
-    async news(id, now) { return id && src(id) !== 'demo' ? [] : d.news(id, now); },
+    async dividends(id, now) { guard(id); if (src(id) === 'yahoo') return yahoo.dividends(inst(id), ySym(id)!, now); return src(id) === 'demo' ? d.dividends(id, now) : []; },
+    async events(id, now) {
+      guard(id);
+      if (src(id) === 'yahoo') return (await yahoo.dividends(inst(id), ySym(id)!, now)).slice(-4).map(x => ({ id: `${id}:ex:${x.exDate}`, instrumentId: id, type: 'dividend_ex' as const, date: x.exDate, confirmed: true, title: `${inst(id).symbol} ex-dividend` }));
+      return src(id) === 'demo' ? d.events(id, now) : [];
+    },
+    // Personal mode shows no generated headlines; the demo desk is only for the showcase.
+    async news(id, now) { return personal || (id && src(id) !== 'demo') ? [] : d.news(id, now); },
     async statistics(id, now) {
       guard(id);
       if (src(id) === 'coingecko') return cg.statistics(id, cgId(id), await cg.history(cgId(id)));
+      if (src(id) === 'yahoo') { const [b, dv] = await Promise.all([yahoo.history(inst(id), ySym(id)!, now), yahoo.dividends(inst(id), ySym(id)!, now).catch(() => [])]); return yahoo.statistics(inst(id), b, dv); }
       if (src(id) === 'ecb') return { instrumentId: id, fiftyTwoWeekHigh: null, fiftyTwoWeekLow: null, volatility1y: null, maxDrawdown1y: null, marketCap: null, peRatio: null, dividendYield: null, expenseRatio: null, beta: null, meta: (await this.quote(id, now)).meta };
       return d.statistics(id, now);
     },
-    async financials(id, now) { guard(id); return src(id) === 'demo' ? d.financials(id, now) : null; },
+    async financials(id, now) { guard(id); return src(id) === 'demo' && !personal ? d.financials(id, now) : null; },
     composition: id => d.composition(id),
     async fxRate(from, to, date) {
       if (!offline && ecb.supports(from, to)) return ecb.rate(from, to, date);
       return d.fxRate(from, to, date);
     },
   };
-  return { market, providers: offline ? [d.info, research.info] : [d.info, cg.info, ecb.info, research.info], sourceOf: id => infoFor[src(id)], research };
+  return { market, providers: offline ? [d.info, research.info] : personal ? [yahooInfo, cg.info, ecb.info, d.info] : [d.info, cg.info, ecb.info, research.info], sourceOf: id => infoFor[src(id)], research };
 }
 
 export function lockedError(inst: Instrument) {

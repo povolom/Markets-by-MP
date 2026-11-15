@@ -11,3 +11,5 @@ dist/
 .dev.vars
 *.local
 coverage/
+desktop/build/
+release/

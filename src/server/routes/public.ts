@@ -28,7 +28,7 @@ export function publicRoutes(pick: (c: any) => Market) {
 
   app.openapi(createRoute({ method: 'get', path: '/status', tags: ['Service'], summary: 'Service status', responses: ok(S.Any, 'Status') }), c => {
     const m = market(c);
-    return json(c, { status: 'ok', version: CHANGELOG[0].version, time: new Date().toISOString(), marketData: { provenance: m.provider.info.provenance === 'demo' ? 'demo' : 'mixed', notice: m.coverage().dataNotice, sources: m.coverage().sources }, limits: { publicPerMinute: 120, accountPerMinute: 600, maxBatch: MAX_BATCH, maxHistoryDays: 1830 } });
+    return json(c, { status: 'ok', mode: c.env.ENVIRONMENT === 'desktop' ? 'desktop' : 'web', platform: c.env.ENVIRONMENT === 'desktop' ? c.env.DESKTOP_PLATFORM ?? null : null, version: CHANGELOG[0].version, time: new Date().toISOString(), marketData: { provenance: m.provider.info.provenance === 'demo' ? 'demo' : 'mixed', notice: m.coverage().dataNotice, sources: m.coverage().sources }, limits: { publicPerMinute: 120, accountPerMinute: 600, maxBatch: MAX_BATCH, maxHistoryDays: 1830 } });
   });
   app.openapi(createRoute({ method: 'get', path: '/changelog', tags: ['Service'], summary: 'API changelog', responses: ok(S.Any, 'Changelog') }), c => json(c, { data: CHANGELOG }));
   app.openapi(createRoute({ method: 'get', path: '/coverage', tags: ['Service'], summary: 'Supported assets, exchanges, fields, history and data rights', responses: ok(S.Any, 'Coverage') }), c => json(c, market(c).coverage()));

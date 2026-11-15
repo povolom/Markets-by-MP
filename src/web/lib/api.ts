@@ -3,14 +3,24 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createAuthClient } from 'better-auth/react';
 import { anonymousClient } from 'better-auth/client/plugins';
 
-export const authClient = createAuthClient({ basePath: '/api/auth', plugins: [anonymousClient()] });
+// The desktop app has no accounts; its window address (tauri://) isn't http, so the auth client gets a placeholder.
+const webOrigin = typeof location !== 'undefined' && location.protocol.startsWith('http');
+export const authClient = createAuthClient({ ...(webOrigin ? {} : { baseURL: 'http://markets.local' }), basePath: '/api/auth', plugins: [anonymousClient()] });
 
 export class ApiError extends Error {
   constructor(public status: number, public code: string, message: string, public details?: any) { super(message); }
 }
 
+/** In the desktop app the Markets API runs inside the window (src/desktop/main.tsx sets this up); requests
+ * go straight to it instead of over the network. */
+type Embedded = (req: Request) => Promise<Response>;
+const embedded = (): Promise<Embedded> | undefined => (globalThis as { __MARKETS_EMBEDDED__?: Promise<Embedded> }).__MARKETS_EMBEDDED__;
+export const isDesktopApp = () => Boolean(embedded());
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const res = await fetch(`/api/v1${path}`, { method, credentials: 'same-origin', headers: body !== undefined ? { 'content-type': 'application/json' } : {}, body: body !== undefined ? JSON.stringify(body) : undefined });
+  const init: RequestInit = { method, credentials: 'same-origin', headers: body !== undefined ? { 'content-type': 'application/json' } : {}, body: body !== undefined ? JSON.stringify(body) : undefined };
+  const local = embedded();
+  const res = local ? await (await local)(new Request(`http://markets.local/api/v1${path}`, init)) : await fetch(`/api/v1${path}`, init);
   const text = await res.text();
   const data = text ? JSON.parse(text) : null;
   if (!res.ok) throw new ApiError(res.status, data?.error?.code ?? 'error', data?.error?.message ?? `Request failed (${res.status}).`, data?.error?.details);
@@ -24,6 +34,18 @@ export const api = {
   put: <T = any>(p: string, b: unknown) => request<T>('PUT', p, b),
   del: <T = any>(p: string, b?: unknown) => request<T>('DELETE', p, b),
 };
+
+/** 'desktop' when this is the Markets app running on your own computer (no accounts, personal data sources). */
+let modeCache: Promise<'desktop' | 'web'> | null = null;
+export const appMode = () => (modeCache ??= request<{ mode?: string; platform?: string | null }>('GET', '/status').then(s => {
+  if (s.mode === 'desktop') document.documentElement.dataset.desktop = s.platform === 'darwin' ? 'mac' : 'win';
+  return (s.mode === 'desktop' ? 'desktop' : 'web') as 'desktop' | 'web';
+}).catch(() => 'web' as const));
+export function useMode() {
+  const [mode, setMode] = useState<'desktop' | 'web' | null>(null);
+  useEffect(() => { void appMode().then(setMode); }, []);
+  return mode;
+}
 
 /** GET with loading, error, stale-while-reloading and manual reload. */
 export function useApi<T = any>(path: string | null, deps: unknown[] = []) {

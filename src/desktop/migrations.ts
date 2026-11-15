@@ -1,0 +1,9 @@
+// Every D1 migration, bundled into the desktop app as text. tests/desktop.test.ts checks this list
+// matches the migrations folder.
+import m0 from '../../migrations/0001_auth.sql?raw';
+import m1 from '../../migrations/0002_markets.sql?raw';
+import m2 from '../../migrations/0003_shared_portfolios.sql?raw';
+import m3 from '../../migrations/0004_data_keys.sql?raw';
+import m4 from '../../migrations/0005_data_key_meta.sql?raw';
+
+export const MIGRATIONS = [{ name: '0001_auth.sql', sql: m0 }, { name: '0002_markets.sql', sql: m1 }, { name: '0003_shared_portfolios.sql', sql: m2 }, { name: '0004_data_keys.sql', sql: m3 }, { name: '0005_data_key_meta.sql', sql: m4 }];

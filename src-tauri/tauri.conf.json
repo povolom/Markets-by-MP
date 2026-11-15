@@ -1,0 +1,26 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Markets by MP",
+  "version": "0.1.0",
+  "identifier": "com.marcantoniopovolo.markets",
+  "build": {
+    "frontendDist": "../dist/desktop",
+    "devUrl": "http://localhost:5174",
+    "beforeDevCommand": "npm run desktop:web-dev",
+    "beforeBuildCommand": "npm run desktop:web"
+  },
+  "app": {
+    "windows": [
+      { "label": "main", "title": "Markets by MP", "width": 1360, "height": 900, "minWidth": 380, "minHeight": 600, "titleBarStyle": "Overlay", "hiddenTitle": true, "backgroundColor": "#0B0D0C" }
+    ],
+    "security": { "csp": null }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app", "dmg", "nsis"],
+    "category": "Finance",
+    "shortDescription": "Your investing world, on your own computer.",
+    "copyright": "MIT License",
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"]
+  }
+}

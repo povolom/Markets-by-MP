@@ -2,6 +2,7 @@
 // dialog and every asset picker, so finding an asset works the same way everywhere.
 import { useEffect, useState } from 'react';
 import { useApi } from '../lib/api';
+import { Link } from '../lib/router';
 import { CLASS_LABEL } from '../lib/format';
 import { Change, LockedPrice, Price, Ticker } from './ui';
 
@@ -40,7 +41,7 @@ export function OtherListings({ ids, prominent }: { ids?: string[]; prominent?: 
   return (
     <span className={`row wrap other-listings ${prominent ? 'prominent' : ''}`}>
       <span className="faint">Also trades as</span>
-      {ids.map(id => { const mic = id.split('.')[0].toUpperCase(); const sym = id.slice(id.indexOf('.') + 1).toUpperCase(); return <a key={id} href={`/assets/${id}`} className="chip">{sym} · {exchangeShort(mic)} · {mic === 'XTSE' ? 'CAD' : 'USD'}</a>; })}
+      {ids.map(id => { const mic = id.split('.')[0].toUpperCase(); const sym = id.slice(id.indexOf('.') + 1).toUpperCase(); return <Link key={id} to={`/assets/${id}`} className="chip">{sym} · {exchangeShort(mic)} · {mic === 'XTSE' ? 'CAD' : 'USD'}</Link>; })}
     </span>
   );
 }

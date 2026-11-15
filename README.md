@@ -8,6 +8,21 @@ Markets by MP is an investing platform and the **Markets API** that powers it: w
 
 Built by [Marcantonio Povolo](https://marcantoniopovolo.com). I decide what it does and review and test each change; AI coding tools help write the code. Open source under the [MIT License](LICENSE): fork it and make your own version.
 
+## Get the app (Mac and Windows)
+
+Markets is meant to run on your own computer. The website is a showcase with a demo; the app is the real thing.
+
+- **Download:** [latest release](https://github.com/povolom/Markets-by-MP/releases/latest). Mac: the `aarch64.dmg` (Apple silicon) or `x64.dmg` (Intel). Windows: the `x64-setup.exe`.
+- **No account, no key:** stocks, ETFs and indexes (US, TSX and more) come from Yahoo Finance, fetched on your own computer for your personal use. Crypto comes from CoinGecko and currencies from the European Central Bank.
+- **Private:** everything is stored in a SQLite file in the app's data folder on your computer. Nothing is sent anywhere except requests for prices.
+- **Dip alerts:** checked every 30 minutes while the app is open, as system notifications.
+
+The app isn't code-signed yet (that needs paid Apple and Microsoft developer certificates), so the first launch needs one extra step:
+- **Mac:** open the app once, then go to System Settings → Privacy & Security and choose **Open Anyway**.
+- **Windows:** on the SmartScreen warning, choose **More info → Run anyway**.
+
+How it's built: [Tauri](https://tauri.app) (a small native shell using the system's own web engine, about 10 MB), with the full Markets API running inside the app (`src/desktop/embedded.ts`) on SQLite compiled to WebAssembly. Prices are fetched through Tauri's native HTTP, limited to the sources listed in `src-tauri/capabilities/default.json`. Build it yourself with `npm run desktop:build` (needs Rust; the Rust build output goes to `~/.cache/markets-by-mp/tauri-target`, outside the repo, because the Cloudflare build tool scans the project folder); GitHub Actions builds both platforms on every `v*` tag (`.github/workflows/desktop.yml`).
+
 ## How it fits together
 
 ```

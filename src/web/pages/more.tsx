@@ -1,6 +1,6 @@
 import { symbolOf } from '../lib/format';
 import { useState } from 'react';
-import { api, authClient, useApi } from '../lib/api';
+import { api, authClient, useApi , useMode } from '../lib/api';
 import { Link, navigate } from '../lib/router';
 import { CLASS_LABEL, dateFmt, priceFmt, timeAgo } from '../lib/format';
 import { useMe } from '../components/Shell';
@@ -143,6 +143,7 @@ export function Connections() {
 
 // ---------------- Settings ----------------
 export function Settings() {
+  const desktop = useMode() === 'desktop';
   const { me, reload } = useMe(); const toast = useToast();
   const [f, set] = useState({ displayName: me?.displayName ?? '', baseCurrency: me?.baseCurrency ?? 'CAD' });
   const [theme, setTheme] = useState<string>(() => { try { return localStorage.getItem('markets-theme') ?? 'system'; } catch { return 'system'; } });
@@ -153,16 +154,17 @@ export function Settings() {
     <>
       <div className="page-head"><div><h1>Settings</h1><p>{me.isGuest ? 'You\'re using a guest demo workspace.' : me.email}</p></div></div>
       {me.isGuest && <div className="notice green"><Icon name="info" /><span>Create an account to keep your watchlists, rules, plans and journal. <Link to="/signup">Create an account</Link></span></div>}
-      <DataKeys guest={me.isGuest} />
+      {!desktop && <DataKeys guest={me.isGuest} />}
       <div className="grid-2" style={{ alignItems: 'start' }}>
         <div className="card stack"><h2>Profile</h2>
           <label className="field">Display name<input className="input" value={f.displayName} maxLength={60} onChange={e => set({ ...f, displayName: e.target.value })} /></label>
           <div className="stack-sm"><span className="small muted">Base currency</span><Seg label="Base currency" value={f.baseCurrency} onChange={v => set({ ...f, baseCurrency: v })} options={[{ value: 'CAD', label: 'CAD' }, { value: 'USD', label: 'USD' }]} /><span className="faint">Changing this re-reports values; recorded trade-date exchange rates stay as they were.</span></div>
           <button className="btn primary" onClick={async () => { await api.patch('/me', f); reload(); toast('Saved.'); }}>Save</button></div>
         <div className="card stack"><h2>Appearance</h2><Seg label="Theme" value={theme} onChange={applyTheme} options={[{ value: 'system', label: 'System' }, { value: 'dark', label: 'Dark' }, { value: 'light', label: 'Light' }]} />
-          <h2>Your data</h2><a className="btn" href="/api/v1/me/export" download>Download all my data (JSON)</a>
-          <button className="btn" onClick={async () => { await authClient.signOut(); navigate('/'); }}>Sign out</button>
-          <button className="btn danger" onClick={() => setDel(true)}>Delete my account</button></div>
+          <h2>Your data</h2>{!desktop && <a className="btn" href="/api/v1/me/export" download>Download all my data (JSON)</a>}
+          {!desktop && <><button className="btn" onClick={async () => { await authClient.signOut(); navigate('/'); }}>Sign out</button>
+          <button className="btn danger" onClick={() => setDel(true)}>Delete my account</button></>}
+          {desktop && <p className="faint">Everything is stored only on this computer. To remove it, delete the Markets by MP app and its data folder.</p>}</div>
       </div>
       <div className="card stack-sm"><h2>Keyboard shortcuts</h2><dl className="kv"><dt><kbd>⌘K</kbd> or <kbd>/</kbd></dt><dd style={{ textAlign: 'left' }}>Search</dd><dt><kbd>g</kbd> then <kbd>o</kbd> <kbd>w</kbd> <kbd>p</kbd> <kbd>d</kbd> <kbd>i</kbd> <kbd>c</kbd> <kbd>s</kbd></dt><dd style={{ textAlign: 'left' }}>Overview, Watchlists, Portfolio, Dip Radar, Discover, Calendar, Settings</dd><dt><kbd>←</kbd> <kbd>→</kbd> on a chart</dt><dd style={{ textAlign: 'left' }}>Read values (hold Shift for 10 days)</dd></dl></div>
       {del && <Dialog title="Delete your account" onClose={() => setDel(false)} footer={<><button className="btn ghost" onClick={() => setDel(false)}>Cancel</button><button className="btn danger" disabled={confirmText !== 'DELETE'} onClick={async () => { await api.del('/me', { confirm: 'DELETE' }); await authClient.signOut().catch(() => null); navigate('/'); }}>Delete everything</button></>}>

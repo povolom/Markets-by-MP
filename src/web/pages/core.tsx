@@ -1,6 +1,6 @@
 import { symbolOf } from '../lib/format';
 import { useMemo, useState } from 'react';
-import { api, useApi } from '../lib/api';
+import { api, useApi, isDesktopApp } from '../lib/api';
 import { Link, navigate } from '../lib/router';
 import { CLASS_LABEL, SESSION_LABEL, dateFmt, money, priceFmt, signedPct, timeAgo } from '../lib/format';
 import { useMe } from '../components/Shell';
@@ -124,7 +124,7 @@ export function Watchlists() {
   const move = (dir: -1 | 1) => { const ids = lists.map(l => l.id); const i = ids.indexOf(list.id); const j = i + dir; if (j < 0 || j >= ids.length) return; [ids[i], ids[j]] = [ids[j], ids[i]]; void run(() => api.post('/watchlists/reorder', { ids }), 'Order saved.'); };
   return (
     <>
-      <div className="page-head"><div><h1>Watchlists</h1><p>Follow anything in Markets' coverage. Saved to your account, on every device.</p></div><button className="btn primary" onClick={() => { setName(''); setDialog('new'); }}><Icon name="plus" />New watchlist</button></div>
+      <div className="page-head"><div><h1>Watchlists</h1><p>{isDesktopApp() ? 'Follow anything in Markets\' coverage. Saved on this computer.' : 'Follow anything in Markets\' coverage. Saved to your account, on every device.'}</p></div><button className="btn primary" onClick={() => { setName(''); setDialog('new'); }}><Icon name="plus" />New watchlist</button></div>
       <ErrorState error={error} retry={reload} />
       {loading && !data ? <div className="card"><Loading rows={5} /></div> : !lists.length ? (
         <div className="card"><Empty title="Create your first watchlist" action={<button className="btn primary" onClick={() => { setName('My watchlist'); setDialog('new'); }}>Create a watchlist</button>}>Watchlists don't need any holdings or a bank connection.</Empty></div>

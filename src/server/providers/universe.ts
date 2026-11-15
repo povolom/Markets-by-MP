@@ -5,7 +5,7 @@ import type { Instrument } from '../../domain/types';
 import { UNIVERSE } from '../data/universe.gen';
 import { SEEDS, toInstrument } from './demo-catalogue';
 
-export type Source = 'demo' | 'coingecko' | 'ecb';
+export type Source = 'demo' | 'coingecko' | 'ecb' | 'yahoo';
 
 export interface Entry { inst: Instrument; rank: number; source: Source; coingeckoId?: string; curated: boolean }
 

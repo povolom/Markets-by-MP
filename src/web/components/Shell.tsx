@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { api, authClient, useApi } from '../lib/api';
+import { api, authClient, useApi, useMode } from '../lib/api';
 import { Link, navigate, useLocation } from '../lib/router';
 import { AssetRowBody, NoMatches, useAssetSearch } from './AssetSearch';
 import { Dialog, ErrorState, Icon, Wordmark, useToast } from './ui';
@@ -26,6 +26,10 @@ const SECONDARY = [
   { to: '/app/settings', label: 'Settings', icon: 'settings' },
   { to: '/developers', label: 'Developers', icon: 'code' },
 ];
+
+function Attribution({ desktop }: { desktop: boolean }) {
+  return <p className="side-attrib">{desktop ? <>Stocks and ETFs: Yahoo Finance, fetched on this computer for your personal use. </> : null}Crypto: <a href="https://www.coingecko.com/" target="_blank" rel="noreferrer">data provided by CoinGecko</a>. Currencies: ECB reference rates.{desktop ? '' : ' Stock prices are demo data.'}</p>;
+}
 
 export function startDemo(toast: (m: string, k?: 'ok' | 'err') => void) {
   return (async () => {
@@ -80,6 +84,9 @@ function useShortcuts(openSearch: () => void) {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { path } = useLocation();
+  const desktop = useMode() === 'desktop';
+  const primary = desktop ? PRIMARY.filter(n => n.to !== '/app/community') : PRIMARY;
+  const secondary = desktop ? SECONDARY.filter(n => n.to !== '/developers') : SECONDARY;
   // The server decides whether you're signed in (/me), not the client's cached session state, which can
   // lag for a moment right after logging in.
   const { data, reload, error, loading } = useApi<{ data: Me }>('/me');
@@ -106,11 +113,11 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="shell">
         <aside className="sidebar" aria-label="Main navigation">
           <div style={{ padding: '2px 8px' }}><Wordmark to="/app" /></div>
-          <nav>{PRIMARY.map(n => <Link key={n.to} to={n.to} className="navlink" aria-current={isActive(n.to) ? 'page' : undefined} title={n.label}><Icon name={n.icon} /><span className="label">{n.label}</span></Link>)}</nav>
+          <nav>{primary.map(n => <Link key={n.to} to={n.to} className="navlink" aria-current={isActive(n.to) ? 'page' : undefined} title={n.label}><Icon name={n.icon} /><span className="label">{n.label}</span></Link>)}</nav>
           <div className="nav-sep" />
-          <nav>{SECONDARY.map(n => <Link key={n.to} to={n.to} className="navlink" aria-current={isActive(n.to) ? 'page' : undefined} title={n.label}><Icon name={n.icon} /><span className="label">{n.label}</span>{n.icon === 'bell' && count > 0 && <span className="count">{count}</span>}</Link>)}</nav>
+          <nav>{secondary.map(n => <Link key={n.to} to={n.to} className="navlink" aria-current={isActive(n.to) ? 'page' : undefined} title={n.label}><Icon name={n.icon} /><span className="label">{n.label}</span>{n.icon === 'bell' && count > 0 && <span className="count">{count}</span>}</Link>)}</nav>
           <div className="side-foot stack-sm" style={{ marginTop: 'auto' }}>
-            <p className="side-attrib">Crypto: <a href="https://www.coingecko.com/" target="_blank" rel="noreferrer">data provided by CoinGecko</a>. Currencies: ECB reference rates. Stock prices are demo data.</p>
+            <Attribution desktop={desktop} />
             <p className="faint" style={{ padding: '0 8px', fontSize: 12 }}>Press <kbd>⌘K</kbd> to search.</p>
           </div>
         </aside>
@@ -127,13 +134,13 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </div>
       <nav className="bottom-nav" aria-label="Main navigation">
-        {PRIMARY.slice(0, 4).map(n => <Link key={n.to} to={n.to} aria-current={isActive(n.to) ? 'page' : undefined}><Icon name={n.icon} /><span>{n.label === 'Dip Radar' ? 'Dips' : n.label}</span></Link>)}
-        <button onClick={() => setMore(true)} aria-haspopup="dialog" aria-current={[...SECONDARY, PRIMARY[4], PRIMARY[5]].some(n => isActive(n.to)) ? 'page' : undefined}><Icon name="more" /><span>More</span>{count > 0 && <span className="count">{count}</span>}</button>
+        {primary.slice(0, 4).map(n => <Link key={n.to} to={n.to} aria-current={isActive(n.to) ? 'page' : undefined}><Icon name={n.icon} /><span>{n.label === 'Dip Radar' ? 'Dips' : n.label}</span></Link>)}
+        <button onClick={() => setMore(true)} aria-haspopup="dialog" aria-current={[...secondary, ...primary.slice(4)].some(n => isActive(n.to)) ? 'page' : undefined}><Icon name="more" /><span>More</span>{count > 0 && <span className="count">{count}</span>}</button>
       </nav>
       {more && <Dialog title="More" onClose={() => setMore(false)}>
-        <nav className="stack-sm">{[PRIMARY[4], PRIMARY[5], ...SECONDARY].map(n => <Link key={n.to} to={n.to} className="navlink" aria-current={isActive(n.to) ? 'page' : undefined}><Icon name={n.icon} /><span>{n.label}</span>{n.icon === 'bell' && count > 0 && <span className="count">{count}</span>}</Link>)}</nav>
-        <button className="btn ghost" onClick={async () => { await authClient.signOut(); toast('Signed out.'); navigate('/'); }}>Sign out</button>
-        <p className="side-attrib">Crypto: <a href="https://www.coingecko.com/" target="_blank" rel="noreferrer">data provided by CoinGecko</a>. Currencies: ECB reference rates. Stock prices are demo data.</p>
+        <nav className="stack-sm">{[...primary.slice(4), ...secondary].map(n => <Link key={n.to} to={n.to} className="navlink" aria-current={isActive(n.to) ? 'page' : undefined}><Icon name={n.icon} /><span>{n.label}</span>{n.icon === 'bell' && count > 0 && <span className="count">{count}</span>}</Link>)}</nav>
+        {!desktop && <button className="btn ghost" onClick={async () => { await authClient.signOut(); toast('Signed out.'); navigate('/'); }}>Sign out</button>}
+        <Attribution desktop={desktop} />
       </Dialog>}
       {search && <SearchDialog onClose={() => setSearch(false)} />}
     </MeCtx.Provider>

@@ -92,6 +92,16 @@ function SignUpForm({ guest }: { guest: boolean }) {
   );
 }
 
+const RELEASES = 'https://github.com/povolom/Markets-by-MP/releases/latest';
+/** Download links for the desktop app; the visitor's own system is listed first. */
+function DownloadButtons() {
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+  const win = /Windows/i.test(ua);
+  const mac = <a key="mac" className={`btn block xl ${win ? '' : 'primary'}`} href={RELEASES}><Icon name="down" size={18} />Download for Mac</a>;
+  const pc = <a key="win" className={`btn block xl ${win ? 'primary' : ''}`} href={RELEASES}><Icon name="down" size={18} />Download for Windows</a>;
+  return <div className="stack-sm">{win ? [pc, mac] : [mac, pc]}<p className="faint" style={{ textAlign: 'center' }}>About 10 MB. macOS 11+ or Windows 10+.</p></div>;
+}
+
 /** The one front door: what Markets is, live prices, and a panel to try the demo, sign in or sign up. */
 export function Start({ mode: initial = 'login' }: { mode?: Mode }) {
   const toast = useToast();
@@ -118,7 +128,7 @@ export function Start({ mode: initial = 'login' }: { mode?: Mode }) {
 
       <main className="start-hero" id="main">
         <section className="start-copy start-intro">
-          <span className="pill"><i aria-hidden />Free public beta</span>
+          <span className="pill"><i aria-hidden />Free · Open source · Mac and Windows</span>
           <h1>Your entire investing world.</h1>
           <p className="lede">Research, track, discover and plan in one place. Watchlists, portfolio tracking, Dip Radar, Buy Plans and Portfolio X-Ray, built around rules you set.</p>
         </section>
@@ -141,21 +151,27 @@ export function Start({ mode: initial = 'login' }: { mode?: Mode }) {
           ) : (
             <div className="stack">
               <div className="stack-sm">
-                <h2 className="panel-title">{mode === 'reset' ? 'Reset your password' : 'Get started'}</h2>
-                {mode !== 'reset' && <p className="muted small">Explore everything with a sample portfolio, or sign in to your own.</p>}
+                <h2 className="panel-title">{mode === 'reset' ? 'Reset your password' : 'Get Markets'}</h2>
+                {mode !== 'reset' && <p className="muted small">Free and open source. The app runs on your own computer with real prices for US and Canadian stocks, ETFs, crypto and currencies: no account, no key, and your data never leaves your device.</p>}
               </div>
               {mode !== 'reset' && <>
+                <DownloadButtons />
+                <div className="or"><span>or try it here first</span></div>
                 <button className="btn demo-btn block xl" onClick={demo} disabled={demoBusy}>
                   <span className="demo-ico" aria-hidden><Icon name="portfolio" size={18} /></span>
-                  <span className="demo-txt"><b>{demoBusy ? 'Opening the demo…' : guest ? 'Continue the demo' : 'Explore the demo'}</b><small>No account needed</small></span>
+                  <span className="demo-txt"><b>{demoBusy ? 'Opening the demo…' : guest ? 'Continue the demo' : 'Explore the demo'}</b><small>Sample portfolio, nothing to install</small></span>
                   <span aria-hidden className="demo-arrow">→</span>
                 </button>
-                <div className="or"><span>or use your account</span></div>
-                <div className="seg full" role="tablist" aria-label="Account">
-                  <button role="tab" aria-selected={mode === 'login'} onClick={() => setMode('login')}>Sign in</button>
-                  <button role="tab" aria-selected={mode === 'signup'} onClick={() => setMode('signup')}>Create account</button>
-                </div>
-                {mode === 'login' ? <LoginForm onMode={setMode} /> : <SignUpForm guest={guest} />}
+                <details className="signin-more" open={mode === 'signup' || undefined}>
+                  <summary>Have a web account? Sign in</summary>
+                  <div className="stack" style={{ paddingTop: 12 }}>
+                    <div className="seg full" role="tablist" aria-label="Account">
+                      <button role="tab" aria-selected={mode === 'login'} onClick={() => setMode('login')}>Sign in</button>
+                      <button role="tab" aria-selected={mode === 'signup'} onClick={() => setMode('signup')}>Create account</button>
+                    </div>
+                    {mode === 'login' ? <LoginForm onMode={setMode} /> : <SignUpForm guest={guest} />}
+                  </div>
+                </details>
               </>}
               {mode === 'reset' && <>
                 <div className="notice warn"><Icon name="info" /><span>Password reset by email isn't available yet: the beta has no email provider connected, so reset links can't be delivered. If you're locked out, contact <a href="https://marcantoniopovolo.com/contact">Marcantonio</a>.</span></div>

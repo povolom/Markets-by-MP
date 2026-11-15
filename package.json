@@ -9,30 +9,45 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "npm run build && vite preview",
-    "typecheck": "tsc -p tsconfig.worker.json && tsc -p tsconfig.web.json",
+    "typecheck": "tsc -p tsconfig.worker.json && tsc -p tsconfig.web.json && tsc -p tsconfig.desktop.json",
     "test": "vitest run",
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
     "openapi": "node --experimental-strip-types scripts/export-openapi.ts",
-    "deploy": "npm run build && wrangler deploy"
+    "deploy": "npm run build && wrangler deploy",
+    "desktop:web": "vite build --config vite.desktop.config.ts",
+    "desktop:web-dev": "vite --config vite.desktop.config.ts",
+    "desktop:dev": "CARGO_TARGET_DIR=$HOME/.cache/markets-by-mp/tauri-target tauri dev",
+    "desktop:build": "CARGO_TARGET_DIR=$HOME/.cache/markets-by-mp/tauri-target tauri build"
   },
   "dependencies": {
     "@hono/zod-openapi": "^1.6.3",
     "@scalar/hono-api-reference": "^0.12.20",
+    "@tauri-apps/api": "^2.12.4",
+    "@tauri-apps/plugin-fs": "^2.7.1",
+    "@tauri-apps/plugin-http": "^2.9.0",
+    "@tauri-apps/plugin-notification": "^2.8.1",
+    "@tauri-apps/plugin-opener": "^2.7.3",
     "better-auth": "^1.7.25",
     "big.js": "^7.0.1",
     "hono": "^4.13.18",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
+    "sql.js": "^1.16.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.69.1",
     "@cloudflare/workers-types": "^5.20261115.1",
+    "@hono/node-server": "^2.1.8",
+    "@tauri-apps/cli": "^2.12.4",
     "@types/big.js": "^7.0.0",
+    "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "@types/sql.js": "^1.4.11",
     "@vitejs/plugin-react": "^6.3.0",
+    "esbuild": "^0.28.2",
     "typescript": "^7.0.2",
     "vite": "^8.3.8",
     "vitest": "^5.1.0",
@@ -42,5 +57,7 @@
     "esbuild@0.28.2": true,
     "workerd@1.20261110.1": true,
     "workerd@1.20261113.1": true
-  }
+  },
+  "author": "Marcantonio Povolo",
+  "homepage": "https://markets.marcantoniopovolo.com"
 }
