@@ -4,6 +4,7 @@ import type { AppEnv } from '../env';
 import { paginate, ApiError } from '../http';
 import type { Market } from '../market';
 import { MAX_BATCH, RANGES } from '../market';
+import { apiCallStats, downloadStats } from '../usage';
 import * as S from '../schemas';
 
 const tags = ['Market data'];
@@ -29,6 +30,13 @@ export function publicRoutes(pick: (c: any) => Market) {
   app.openapi(createRoute({ method: 'get', path: '/status', tags: ['Service'], summary: 'Service status', responses: ok(S.Any, 'Status') }), c => {
     const m = market(c);
     return json(c, { status: 'ok', mode: c.env.ENVIRONMENT === 'desktop' ? 'desktop' : 'web', platform: c.env.ENVIRONMENT === 'desktop' ? c.env.DESKTOP_PLATFORM ?? null : null, version: CHANGELOG[0].version, time: new Date().toISOString(), marketData: { provenance: m.provider.info.provenance === 'demo' ? 'demo' : 'mixed', notice: m.coverage().dataNotice, sources: m.coverage().sources }, limits: { publicPerMinute: 120, accountPerMinute: 600, maxBatch: MAX_BATCH, maxHistoryDays: 1830 } });
+  });
+  app.openapi(createRoute({ method: 'get', path: '/stats', tags: ['Service'], summary: 'Public usage: desktop app downloads and API calls served', responses: ok(S.Any, 'Stats') }), async c => {
+    const [downloads, apiCalls] = await Promise.all([
+      downloadStats(c.env.GITHUB_REPO ?? 'povolom/Markets-by-MP').catch(() => null),
+      c.env.ENVIRONMENT === 'desktop' ? Promise.resolve(null) : apiCallStats(c.env.DB).catch(() => null),
+    ]);
+    return json(c, { data: { downloads, apiCalls, asOf: new Date().toISOString() }, notes: ['Downloads are the GitHub Releases download counts for the Mac and Windows installers.', 'API calls count every request to the hosted Markets API (the web app and outside clients). The desktop app runs its own API locally and isn\'t counted.'] });
   });
   app.openapi(createRoute({ method: 'get', path: '/changelog', tags: ['Service'], summary: 'API changelog', responses: ok(S.Any, 'Changelog') }), c => json(c, { data: CHANGELOG }));
   app.openapi(createRoute({ method: 'get', path: '/coverage', tags: ['Service'], summary: 'Supported assets, exchanges, fields, history and data rights', responses: ok(S.Any, 'Coverage') }), c => json(c, market(c).coverage()));

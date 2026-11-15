@@ -36,6 +36,7 @@ beforeAll(() => setFetcher(async url => {
     for (let i = 0; i < 30; i++) series[day(40 - i).toISOString().slice(0, 10)] = { '1. open': '30', '2. high': '31', '3. low': '29', '4. close': String(30 + i / 10), '5. volume': '1000' };
     return json({ 'Meta Data': {}, 'Time Series (Daily)': series });
   }
+  if (url.includes('api.github.com')) return json([{ tag_name: 'v0.2.0', published_at: '2026-11-15T12:00:00Z', assets: [{ name: 'Markets.by.MP_0.2.0_aarch64.dmg', download_count: 12 }, { name: 'Markets.by.MP_0.2.0_x64.dmg', download_count: 3 }, { name: 'Markets.by.MP_0.2.0_x64-setup.exe', download_count: 7 }, { name: 'latest.json', download_count: 99 }] }]);
   if (url.includes('frankfurter')) {
     const rates: Record<string, Record<string, number>> = {};
     for (let i = 10; i >= 1; i--) rates[day(i).toISOString().slice(0, 10)] = { CAD: 1.40 + i / 1000, EUR: 0.9, GBP: 0.78, JPY: 150, AUD: 1.5, CHF: 0.88, MXN: 18, CNY: 7.2, INR: 84 };
@@ -76,13 +77,17 @@ describe('live providers', () => {
     expect(fx.body.data.rate).toBe('0.9');
     expect(fx.body.meta.provider).toBe('ecb');
   });
-  it('keeps curated stocks on labelled demo data and locks the rest', async () => {
+  it('shows visitors labelled demo prices everywhere, and locks unlicensed listings for accounts without a key', async () => {
     const curated = await get('/api/v1/assets/xnas.aapl/quote', true);
     expect(curated.body.data.meta.provenance).toBe('demo');
-    const us = await get('/api/v1/assets/xnas.sofi/quote', true);
+    const visitor = await get('/api/v1/assets/xnas.sofi/quote', true);
+    expect(visitor.status).toBe(200);
+    expect(visitor.body.data.meta.provenance).toBe('demo');
+    addUser(env.DB as any, 'acct');
+    const us = await get('/api/v1/assets/xnas.sofi/quote', true, 'acct');
     expect(us.status).toBe(403);
     expect(us.body.error.code).toBe('locked');
-    const batch = await get('/api/v1/quotes?ids=xnas.aapl,xnas.sofi,xtse.gsy', true);
+    const batch = await get('/api/v1/quotes?ids=xnas.aapl,xnas.sofi,xtse.gsy', true, 'acct');
     expect(batch.status).toBe(200);
     expect(batch.body.data.map((q: any) => q.locked ?? false)).toEqual([false, true, true]);
     expect(batch.body.data[2].lockReason).toBe('needs_key');
@@ -183,5 +188,17 @@ describe('Alpha Vantage', () => {
     expect(q.status).toBe(200);
     expect(q.body.data).toMatchObject({ price: '32.90', previousClose: '32.80', currency: 'CAD', meta: { provider: 'alphavantage' } });
     expect((await get('/api/v1/assets/xtse.gsy/history?range=3M', true, 'av')).body.data.length).toBeGreaterThan(20);
+  });
+});
+
+describe('public stats', () => {
+  it('reports desktop downloads by platform and counts API calls', async () => {
+    const before = (await get('/api/v1/stats', false)).body.data.apiCalls.total;
+    await get('/api/v1/assets/xnas.aapl/quote', false);
+    await get('/api/v1/assets/xnas.aapl/quote', true);
+    const r = await get('/api/v1/stats', false);
+    expect(r.body.data.downloads).toMatchObject({ total: 22, mac: 15, windows: 7, latest: { version: 'v0.2.0' } });
+    expect(r.body.data.apiCalls.total).toBeGreaterThanOrEqual(before + 3);
+    expect(r.body.data.apiCalls.byKind.app).toBeGreaterThan(0);
   });
 });

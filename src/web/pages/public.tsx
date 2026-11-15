@@ -93,6 +93,19 @@ function SignUpForm({ guest }: { guest: boolean }) {
 }
 
 const RELEASES = 'https://github.com/povolom/Markets-by-MP/releases/latest';
+const n = (v: number | null | undefined) => (v == null ? '—' : new Intl.NumberFormat('en-CA', { notation: v >= 10000 ? 'compact' : 'standard', maximumFractionDigits: 1 }).format(v));
+/** Live usage numbers: desktop downloads (GitHub Releases) and calls served by the hosted Markets API. */
+export function UsageStats({ compact }: { compact?: boolean }) {
+  const { data } = useApi<{ data: { downloads: { total: number; mac: number; windows: number; latest: { version: string } | null } | null; apiCalls: { total: number; last30Days: number } | null } }>('/stats');
+  const d = data?.data;
+  return (
+    <div className={`usage ${compact ? 'compact' : ''}`} aria-label="Usage">
+      <div><b className="num">{d ? (d.downloads ? n(d.downloads.total) : '—') : <span className="skeleton" style={{ width: 40, height: 18, display: 'inline-block' }} />}</b><span>app downloads{d?.downloads?.latest ? ` · ${d.downloads.latest.version}` : ''}</span></div>
+      <div><b className="num">{d ? n(d.apiCalls?.total) : <span className="skeleton" style={{ width: 40, height: 18, display: 'inline-block' }} />}</b><span>API calls served</span></div>
+      {!compact && <div><b className="num">{d ? n(d.apiCalls?.last30Days) : <span className="skeleton" style={{ width: 40, height: 18, display: 'inline-block' }} />}</b><span>in the last 30 days</span></div>}
+    </div>
+  );
+}
 /** Download links for the desktop app; the visitor's own system is listed first. */
 function DownloadButtons() {
   const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
@@ -134,6 +147,7 @@ export function Start({ mode: initial = 'login' }: { mode?: Mode }) {
         </section>
         <section className="start-copy start-more" aria-label="Highlights">
           <MarketTape />
+          <UsageStats />
           <ul className="start-points">
             <li><Icon name="discover" size={17} /><span><b>12,000+ assets.</b> Every US stock and ETF, major TSX listings, top crypto and currencies.</span></li>
             <li><Icon name="dip" size={17} /><span><b>Dip Radar.</b> You define what a dip is; Markets tells you when your rule matches.</span></li>
@@ -225,6 +239,7 @@ export function Developers() {
         <div className="stack-sm"><span className="badge outline" style={{ justifySelf: 'start' }}>Markets API · v1 beta</span><h1>Build with the Markets API</h1>
           <p className="muted">The same versioned API that powers the Markets app. Public market-data endpoints need no key. Every response says which provider it came from, when the value was observed, and whether it's demo data.</p></div>
         <div className="notice warn"><Icon name="info" /><span><b>Stock, ETF, fund and index prices are generated demo data</b> until a licensed feed is connected. FX rates are real European Central Bank reference rates. Real crypto prices from CoinGecko appear in the Markets app only, because CoinGecko's terms don't allow redistributing them; the API returns <code>403 not_licensed</code> for crypto.</span></div>
+        <UsageStats />
         <div className="grid-2">
           <div className="card stack-sm"><h2>Try it</h2><pre className="code">{curl}</pre><pre className="code">{js}</pre><a className="btn primary" href="/api/v1/docs">Open the interactive reference</a><a className="btn" href="/api/v1/openapi.json">Download the OpenAPI spec</a></div>
           <div className="card stack-sm"><h2>Limits and behaviour</h2>

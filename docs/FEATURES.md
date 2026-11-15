@@ -40,7 +40,9 @@
 | Cross-listings | Implemented | 55 TSX companies link to their New York listing (e.g. CNR and CNI) |
 | Your own data key (EODHD) | Implemented | One key covers US and Canadian stocks and ETFs (NYSE, Nasdaq, TSX, TSX Venture) and the S&P 500, Nasdaq, Dow and TSX indexes: delayed intraday quotes, daily history and real dividends, for that user only. Free EODHD plans (20 calls a day) skip scheduled dip checks to save calls |
 | Your own data key (Alpaca, US only) | Implemented | A signed-in user connects their own free Alpaca key in Settings. Markets encrypts it (AES-GCM) and uses it only for that user: real US stock and ETF prices (IEX real-time), daily history, charts and intraday Dip Radar alerts. Never shared, never sent back to the browser |
-| Locked prices | Implemented | Listings outside the curated list show a blurred, locked price with the next step (create an account, connect a key) instead of a made-up number. Non-curated Canadian listings say no free source exists yet |
+| Public stats | Implemented | `GET /api/v1/stats`: desktop downloads from GitHub Releases (by platform) and API calls served (counted per day, batched writes, no IPs or paths stored). Shown on the start page and Developers page |
+| Showcase demo | Implemented | Visitors and demo guests see labelled demo prices for every listing; Exit demo returns to the start page |
+| Locked prices | Implemented | For signed-in web accounts without a key: listings outside the curated list show a blurred, locked price with the next step (create an account, connect a key) instead of a made-up number. Non-curated Canadian listings say no free source exists yet |
 | Stock, ETF, fund and index prices | **Demo-only** | Generated and labelled. Free stock feeds (Finnhub, Twelve Data, Alpha Vantage, FMP) are personal-use only; a licensed feed is needed for public display. The Yahoo adapter stays isolated and off |
 | Strategy Lab | Not started (later stage) | |
 | Native iOS/Android/desktop apps | Not started | The PWA installs on supported browsers; it is not a native app. |

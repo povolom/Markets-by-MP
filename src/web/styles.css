@@ -529,3 +529,10 @@ a.locked:hover .locked-tag { color: var(--accent-text); border-color: color-mix(
 .signin-more summary { cursor: pointer; color: var(--text-2); font-size: 13.5px; font-weight: 600; text-align: center; list-style: none; padding: 4px 0; }
 .signin-more summary::-webkit-details-marker { display: none; }
 .signin-more summary:hover { color: var(--text); }
+.usage { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.usage.compact { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.usage > div { display: grid; gap: 2px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--hair); background: var(--glass); }
+.usage b { font-size: 20px; font-weight: 750; letter-spacing: -0.02em; }
+.usage span { font-size: 12.5px; color: var(--text-2); }
+.linkish.strong { color: var(--text); font-weight: 600; font-size: 13px; }
+@media (max-width: 720px) { .usage { grid-template-columns: repeat(3, minmax(0, 1fr)); } .usage b { font-size: 17px; } .usage > div { padding: 10px; } }

@@ -12,7 +12,8 @@ export interface Env {
   MARKET_DATA?: string;               // "offline" = demo data for everything (tests, no network)
   COINGECKO_API_KEY?: string;
   DATA_KEY_SECRET?: string;
-  DESKTOP_PLATFORM?: string;          // 'darwin' | 'win32' in the desktop app           // encrypts users' personal data keys (falls back to BETTER_AUTH_SECRET)         // optional free CoinGecko Demo key (higher rate limit)               // "production" | "development"
+  DESKTOP_PLATFORM?: string;
+  GITHUB_REPO?: string;               // owner/name for download counts (default povolom/Markets-by-MP)          // 'darwin' | 'win32' in the desktop app           // encrypts users' personal data keys (falls back to BETTER_AUTH_SECRET)         // optional free CoinGecko Demo key (higher rate limit)               // "production" | "development"
 }
 
 export interface Vars { requestId: string; userId: string | null; isAnonymous: boolean; market: import('./market').Market }

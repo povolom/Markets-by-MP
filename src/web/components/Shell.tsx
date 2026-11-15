@@ -109,10 +109,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <MeCtx.Provider value={{ me, reload }}>
       <a href="#main" className="skip">Skip to content</a>
-      {me?.isGuest && <div className="demo-strip"><span className="badge demo">Demo</span><span>Made-up holdings and demo prices<span className="long">. Create an account to keep your watchlists, rules and plans</span>.</span><Link to="/signup">Create an account</Link></div>}
+      {me?.isGuest && <div className="demo-strip"><span className="badge demo">Demo</span><span>Made-up holdings and demo prices<span className="long">. The app shows real prices on your own computer</span>.</span><Link to="/">Get the app</Link><button className="linkish strong" onClick={async () => { await authClient.signOut(); navigate('/'); }}>Exit demo</button></div>}
       <div className="shell">
         <aside className="sidebar" aria-label="Main navigation">
-          <div style={{ padding: '2px 8px' }}><Wordmark to="/app" /></div>
+          <div style={{ padding: '2px 8px' }}><Wordmark to={desktop ? '/app' : '/'} /></div>
           <nav>{primary.map(n => <Link key={n.to} to={n.to} className="navlink" aria-current={isActive(n.to) ? 'page' : undefined} title={n.label}><Icon name={n.icon} /><span className="label">{n.label}</span></Link>)}</nav>
           <div className="nav-sep" />
           <nav>{secondary.map(n => <Link key={n.to} to={n.to} className="navlink" aria-current={isActive(n.to) ? 'page' : undefined} title={n.label}><Icon name={n.icon} /><span className="label">{n.label}</span>{n.icon === 'bell' && count > 0 && <span className="count">{count}</span>}</Link>)}</nav>

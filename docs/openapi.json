@@ -933,6 +933,67 @@
     }
    }
   },
+  "/api/v1/stats": {
+   "get": {
+    "tags": [
+     "Service"
+    ],
+    "summary": "Public usage: desktop app downloads and API calls served",
+    "responses": {
+     "200": {
+      "description": "Stats",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limited. See the Retry-After header.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "502": {
+      "description": "The upstream provider failed. No substitute data is returned.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/changelog": {
    "get": {
     "tags": [

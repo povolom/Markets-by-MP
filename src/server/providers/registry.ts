@@ -21,7 +21,8 @@ import { ENTRIES, FEATURED, INSTRUMENTS, type Source } from './universe';
 import type { MarketDataProvider, ProviderInfo } from './types';
 
 export interface Registry {
-  market: MarketDataProvider;          // every instrument, for the Markets app
+  market: MarketDataProvider;          // every instrument, for the Markets app (locks listings with no permitted source)
+  demoMarket: MarketDataProvider;      // the showcase demo: labelled demo prices for every listing, no locks
   providers: ProviderInfo[];           // everything configured, for /coverage
   sourceOf: (id: string) => ProviderInfo;
   research: ReturnType<typeof createYahooResearch>;
@@ -47,10 +48,11 @@ export function getRegistry(env: { YAHOO_RESEARCH?: string; MARKET_DATA?: string
   // Listings outside the curated catalogue have no free price source Markets may show to everyone. They stay
   // searchable, but prices unlock only through the viewer's own data key (US) or a future licensed feed.
   const locked = (id: string) => { const e = ENTRIES.get(id); return Boolean(e && e.source === 'demo' && !e.curated && (e.inst.assetClass === 'stock' || e.inst.assetClass === 'etf')); };
-  const guard = (id: string) => { if (!personal && locked(id)) throw lockedError(ENTRIES.get(id)!.inst); };
   const inst = (id: string) => ENTRIES.get(id)!.inst;
 
-  const market: MarketDataProvider = {
+  const build = (lock: boolean): MarketDataProvider => {
+  const guard = (id: string) => { if (lock && !personal && locked(id)) throw lockedError(ENTRIES.get(id)!.inst); };
+  return {
     info: { id: 'markets', name: 'Markets combined data', provenance: offline ? 'demo' : 'production', enabled: true, delaySeconds: null, assetClasses: d.info.assetClasses, rights: d.info.rights },
     instruments: () => INSTRUMENTS,
     featured: () => FEATURED,
@@ -93,7 +95,11 @@ export function getRegistry(env: { YAHOO_RESEARCH?: string; MARKET_DATA?: string
       return d.fxRate(from, to, date);
     },
   };
-  return { market, providers: offline ? [d.info, research.info] : personal ? [yahooInfo, cg.info, ecb.info, d.info] : [d.info, cg.info, ecb.info, research.info], sourceOf: id => infoFor[src(id)], research };
+  };
+  const market = build(true);
+  // The showcase demo: labelled demo prices for every listing instead of a page of locked prices.
+  const demoMarket = build(false);
+  return { market, demoMarket, providers: offline ? [d.info, research.info] : personal ? [yahooInfo, cg.info, ecb.info, d.info] : [d.info, cg.info, ecb.info, research.info], sourceOf: id => infoFor[src(id)], research };
 }
 
 export function lockedError(inst: Instrument) {

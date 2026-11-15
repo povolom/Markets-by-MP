@@ -12,15 +12,16 @@ import { createEodhd, eodhdInfo } from './providers/eodhd';
 import { createQuestrade, questradeInfo } from './providers/questrade';
 import { alphaVantageInfo, createAlphaVantage } from './providers/alphavantage';
 import { loadQuestrade, markInvalid, updateQuestrade, userKeys } from './data-keys';
+import { countCall, flushCounts } from './usage';
 import { CHANGELOG, publicRoutes } from './routes/public';
 import { privateRoutes } from './routes/private';
 
 export type SessionResolver = (c: Parameters<MiddlewareHandler<AppEnv>>[0]) => Promise<{ userId: string; isAnonymous: boolean } | null>;
 
-const PUBLIC_PATHS = ['/api/v1/status', '/api/v1/coverage', '/api/v1/changelog', '/api/v1/assets/*', '/api/v1/quotes', '/api/v1/markets/*', '/api/v1/news', '/api/v1/screeners/*', '/api/v1/fx', '/api/v1/openapi.json'];
+const PUBLIC_PATHS = ['/api/v1/status', '/api/v1/stats', '/api/v1/coverage', '/api/v1/changelog', '/api/v1/assets/*', '/api/v1/quotes', '/api/v1/markets/*', '/api/v1/news', '/api/v1/screeners/*', '/api/v1/fx', '/api/v1/openapi.json'];
 
 export function createApi(resolveSession: SessionResolver) {
-  let markets: { app: Market; api: Market; registry: Registry } | null = null;
+  let markets: { app: Market; demo: Market; api: Market; registry: Registry } | null = null;
   const personal = new Map<string, { sig: string; m: Market }>();
   const app = new OpenAPIHono<AppEnv>({
     defaultHook: (result, c) => {
@@ -29,20 +30,26 @@ export function createApi(resolveSession: SessionResolver) {
   });
   const getMarkets = (env: AppEnv['Bindings']) => (markets ??= (() => {
     const r = getRegistry(env);
-    return { registry: r, app: createMarket(r.market, r.providers, { audience: 'app', sourceOf: r.sourceOf }), api: createMarket(r.market, r.providers, { audience: 'api', sourceOf: r.sourceOf }) };
+    return {
+      registry: r,
+      app: createMarket(r.market, r.providers, { audience: 'app', sourceOf: r.sourceOf }),
+      demo: createMarket(r.demoMarket, r.providers, { audience: 'app', sourceOf: r.sourceOf, namespace: 'demo' }),
+      api: createMarket(r.demoMarket, r.providers, { audience: 'api', sourceOf: r.sourceOf }),
+    };
   })());
   const getMarket = (env: AppEnv['Bindings']) => getMarkets(env).app;
   /** The market a signed-in user sees: the shared one, plus their own data key for US stocks if they connected one. */
-  const marketFor = async (env: AppEnv['Bindings'], userId: string | null, opts: { scheduled?: boolean } = {}): Promise<Market> => {
+  const marketFor = async (env: AppEnv['Bindings'], userId: string | null, opts: { scheduled?: boolean; anonymous?: boolean } = {}): Promise<Market> => {
     const ms = getMarkets(env);
-    if (!userId) return ms.app;
+    // Visitors and demo guests explore the showcase with labelled demo prices for every listing.
+    if (!userId || opts.anonymous) return ms.demo;
     const keys = await userKeys(env.DB, env.DATA_KEY_SECRET ?? env.BETTER_AUTH_SECRET, userId).catch(() => ({}) as Awaited<ReturnType<typeof userKeys>>);
     // Scheduled alert checks skip keys on very small daily allowances (EODHD's free plan), so the cron
     // doesn't use up calls the person needs for browsing. "Check my rules now" still uses the key.
     const eodhd = keys.eodhd && !(opts.scheduled && keys.eodhd.dailyLimit != null && keys.eodhd.dailyLimit <= 100) ? keys.eodhd : undefined;
     // Alpha Vantage's free plan (about 25 calls a day) is never spent by scheduled checks.
     const av = opts.scheduled ? undefined : keys.alphavantage;
-    if (!keys.alpaca && !eodhd && !keys.questrade && !av) { personal.delete(userId); return ms.app; }
+    if (!keys.alpaca && !eodhd && !keys.questrade && !av) { personal.delete(userId); return env.MARKET_DATA === 'personal' ? ms.demo : ms.app; }
     const sig = `${keys.alpaca?.keyId ?? ''}|${eodhd?.token.slice(-8) ?? ''}|${keys.questrade ? 'q' : ''}|${av?.apiKey.slice(-6) ?? ''}`;
     const hit = personal.get(userId); if (hit && hit.sig === sig) return hit.m;
     const r = ms.registry;
@@ -64,8 +71,10 @@ export function createApi(resolveSession: SessionResolver) {
     getMarkets(c.env);
     const s = await resolveSession(c);
     c.set('userId', s?.userId ?? null); c.set('isAnonymous', s?.isAnonymous ?? false);
-    c.set('market', await marketFor(c.env, s?.userId ?? null));
+    c.set('market', await marketFor(c.env, s?.userId ?? null, { anonymous: s?.isAnonymous }));
+    countCall(audienceOf(c));
     await next();
+    try { c.executionCtx.waitUntil(flushCounts(c.env.DB)); } catch { /* no execution context (tests, desktop): nothing to flush into */ }
   });
   for (const p of PUBLIC_PATHS) app.use(p, publicCors);
   app.use('/api/v1/*', rateLimit);
@@ -73,7 +82,7 @@ export function createApi(resolveSession: SessionResolver) {
   app.use('/api/v1/*', sameOrigin);
 
   // Public routes serve the app and outside clients from the same URLs; each gets what it may see.
-  app.route('/api/v1', publicRoutes(c => audienceOf(c) === 'api' ? markets!.api : (c.get('market') ?? markets!.app)));
+  app.route('/api/v1', publicRoutes(c => audienceOf(c) === 'api' ? markets!.api : (c.get('market') ?? markets!.demo)));
   app.route('/api/v1', privateRoutes(c => c?.get('market') ?? markets!.app));
 
   app.openAPIRegistry.registerComponent('securitySchemes', 'session', { type: 'apiKey', in: 'cookie', name: 'better-auth.session_token', description: 'Session cookie set by signing in on markets.marcantoniopovolo.com. Private endpoints are same-origin only; third-party access to private data will use explicit, scoped consent (not yet available).' });
