@@ -62,7 +62,8 @@ export function timeWeightedReturn(points: { value: Big; flow: Big }[]): Big | n
     const start = points[i - 1].value, end = points[i].value, flow = points[i].flow;
     if (start.lte(0)) { if (end.gt(0)) started = true; continue; }
     started = true;
-    growth = growth.times(end.minus(flow).div(start));
+    // Rounded each step: chained products otherwise keep every digit and grow without bound.
+    growth = growth.times(end.minus(flow).div(start)).round(20);
   }
   return started ? growth.minus(1).times(100) : null;
 }

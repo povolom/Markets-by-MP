@@ -4,7 +4,7 @@ import Big from 'big.js';
 import { D, ZERO, money, pct } from '../domain/decimal';
 import { exposures, fundOverlap } from '../domain/exposure';
 import { buildPortfolio, externalFlows, type PortfolioSummary } from '../domain/portfolio';
-import { maxDrawdown, timeWeightedReturn, xirr, annualizedVolatility, fmtPct } from '../domain/stats';
+import { maxDrawdown, xirr, annualizedVolatility, fmtPct } from '../domain/stats';
 import { whatIf, type WhatIfAction } from '../domain/whatif';
 import type { Bar, Transaction } from '../domain/types';
 import { all, first } from './db';
@@ -65,29 +65,35 @@ export async function performance(db: D1Database, m: Market, userId: string, por
   const fxIds: Record<string, string> = { USD: 'fx.usdcad' };
   const fxHist = base === 'CAD' ? await m.fullHistory('fx.usdcad') : await m.fullHistory('fx.usdcad');
   let fxI = 0;
+  const ONE = D(1), fxBig = new Map<number, Big>();
   const fxAt = (ccy: string, date: string): Big => {
-    if (ccy === base) return D(1);
+    if (ccy === base) return ONE;
     while (fxI + 1 < fxHist.length && fxHist[fxI + 1].date <= date) fxI++;
-    const usdcad = D(fxHist[fxI].close);
+    let usdcad = fxBig.get(fxI); if (!usdcad) { usdcad = D(fxHist[fxI].close); fxBig.set(fxI, usdcad); }
     if (ccy === 'USD' && base === 'CAD') return usdcad;
     if (ccy === 'CAD' && base === 'USD') return D(1).div(usdcad);
     return D(fx[ccy] ?? 1);
   };
   void fxIds;
   const start = txs[0].tradeDate;
-  const dates = (hist.get(ids[0]) ?? fxHist).map(b => b.date).filter(d => d >= start);
-  for (const id of ids) for (const b of hist.get(id)!) if (b.date >= start && !dates.includes(b.date)) dates.push(b.date);
-  dates.sort();
+  const dateSet = new Set<string>();
+  for (const id of ids) for (const b of hist.get(id)!) if (b.date >= start) dateSet.add(b.date);
+  const dates = [...dateSet].sort();
   const { flows, includesCash } = externalFlows(txs, base, c => D(fx[c] ?? 1));
   // One pass over the dates, applying each transaction once: quantities and cash at the end of each day.
   const ordered = [...txs].sort((x, y) => x.tradeDate.localeCompare(y.tradeDate));
   const qty = new Map<string, Big>(); let cash = ZERO; let k = 0;
   const cursor = new Map<string, number>();
+  const closeBig = new Map<string, Big[]>();
+  const currencyOf = new Map(ids.map(id => [id, m.instrument(id).currency]));
   const closeOn = (id: string, date: string): Big | null => {
     const bars = hist.get(id)!; let i = cursor.get(id) ?? 0;
     while (i + 1 < bars.length && bars[i + 1].date <= date) i++;
     cursor.set(id, i);
-    return bars[i] && bars[i].date <= date ? D(bars[i].close) : null;
+    if (!(bars[i] && bars[i].date <= date)) return null;
+    // One decimal per bar, reused across days (a holding's close repeats on non-trading days).
+    let byBar = closeBig.get(id); if (!byBar) { byBar = []; closeBig.set(id, byBar); }
+    return (byBar[i] ??= D(bars[i].close));
   };
   const points = dates.map(date => {
     for (; k < ordered.length && ordered[k].tradeDate <= date; k++) {
@@ -103,20 +109,30 @@ export async function performance(db: D1Database, m: Market, userId: string, por
       if (t.type === 'withdrawal' || t.type === 'fee') cash = cash.minus(D(t.amount).times(r));
     }
     let v = cash;
-    for (const [id, q] of qty) { if (q.eq(0)) continue; const c = closeOn(id, date); if (c) v = v.plus(q.times(c).times(fxAt(m.instrument(id).currency, date))); }
+    for (const [id, q] of qty) { if (q.eq(0)) continue; const c = closeOn(id, date); if (c) v = v.plus(q.times(c).times(fxAt(currencyOf.get(id)!, date))); }
     return { date, value: v, flow: flows.get(date) ?? ZERO };
   });
   // Flows on non-trading days are carried to the next valuation date.
-  const flowDates = [...flows.keys()].filter(d => !dates.includes(d));
+  const flowDates = [...flows.keys()].filter(d => !dateSet.has(d));
   for (const d of flowDates) { const p = points.find(x => x.date > d); if (p) p.flow = p.flow.plus(flows.get(d)!); }
   // TWR treats the first day's value as the starting point, so its flow isn't counted as a gain.
-  const twr = timeWeightedReturn(points);
+  // The time-weighted return and the indexed line are the same chain of daily growth factors, computed
+  // once. Divisions use 12 decimal places (plenty for a percentage shown to 2) to stay within the
+  // Worker's CPU budget; values themselves stay exact.
   const index: { date: string; value: string; indexed: string }[] = [];
-  let growth = D(1);
-  points.forEach((p, i) => {
-    if (i > 0 && points[i - 1].value.gt(0)) growth = growth.times(p.value.minus(p.flow).div(points[i - 1].value));
-    index.push({ date: p.date, value: money(p.value), indexed: growth.times(100).round(4).toString() });
-  });
+  let growth = D(1), started = false;
+  const dp = Big.DP; Big.DP = 12;
+  try {
+    points.forEach((p, i) => {
+      if (i > 0) {
+        const prev = points[i - 1].value;
+        if (prev.gt(0)) { started = true; growth = growth.times(p.value.minus(p.flow).div(prev)).round(12); }
+        else if (p.value.gt(0)) started = true;
+      }
+      index.push({ date: p.date, value: money(p.value), indexed: growth.times(100).round(4).toString() });
+    });
+  } finally { Big.DP = dp; }
+  const twr = started ? growth.minus(1).times(100) : null;
   const last = points[points.length - 1];
   const invFlows = [...[...flows.entries()].sort().map(([date, f]) => ({ date, amount: -Number(f) })), { date: last.date, amount: Number(last.value) }];
   const mwr = xirr(invFlows);
