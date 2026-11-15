@@ -6,7 +6,7 @@ import type { Env } from './server/env';
 import { evaluateAll } from './server/jobs/alerts';
 import { errorResponse, ApiError } from './server/http';
 
-const { app, getMarket } = createApi(async c => {
+const { app, marketFor } = createApi(async c => {
   const session = await createAuth(c.env).api.getSession({ headers: c.req.raw.headers }).catch(() => null);
   return session ? { userId: session.user.id, isAnonymous: Boolean((session.user as { isAnonymous?: boolean }).isAnonymous) } : null;
 });
@@ -20,6 +20,6 @@ app.get('/api/auth', c => errorResponse(c, new ApiError(404, 'not_found', 'See /
 export default {
   fetch: app.fetch,
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
-    ctx.waitUntil(evaluateAll(env.DB, getMarket(env)));
+    ctx.waitUntil(evaluateAll(env.DB, userId => marketFor(env, userId)));
   },
 } satisfies ExportedHandler<Env>;

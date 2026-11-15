@@ -12,6 +12,8 @@ import { ownedPortfolio, performance, simulate, summarize, transactions, xray, b
 import { evaluateUser, ruleTargets, toRuleInput, type RuleRow } from '../jobs/alerts';
 import { evaluateRule } from '../../domain/dips';
 import { DEMO_POSTS, seedDemo } from '../demo-seed';
+import { listConnections, removeConnection, saveAlpaca } from '../data-keys';
+import { verifyAlpaca } from '../providers/alpaca';
 import { SAMPLE_PORTFOLIOS, sampleView, sharedRow, sharedView, viewerHoldings } from '../community';
 import * as S from '../schemas';
 
@@ -22,11 +24,11 @@ const Instr = z.string().min(1).max(64);
 const Money = z.string().refine(isDec, 'Must be a decimal number');
 const DateStr = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
-export function privateRoutes(market: () => Market) {
+export function privateRoutes(market: (c?: any) => Market) {
   const app = new OpenAPIHono<AppEnv>();
   const uid = (c: any): string => { const u = c.get('userId'); if (!u) throw new ApiError(401, 'unauthorized', 'Sign in to use this endpoint.'); return u; };
   const out = (c: any, data: unknown, status = 200) => c.json(data as any, status);
-  const assertInstrument = (id: string) => market().instrument(id);
+  const assertInstrument = (id: string) => market(undefined).instrument(id);
   const route = <M extends 'get' | 'post' | 'put' | 'patch' | 'delete', P extends string, R extends NonNullable<RouteConfig['request']> = {}>(method: M, path: P, tag: string, summary: string, request?: R) =>
     createRoute({ method, path, tags: [tag], summary, request: (request ?? {}) as R, responses: ok(summary), security: [{ session: [] }] });
 
@@ -78,18 +80,18 @@ export function privateRoutes(market: () => Market) {
   app.openapi(route('post', '/demo/seed', 'Account', 'Fill a guest workspace with labelled demo data (guests only)'), async c => {
     const id = uid(c);
     if (!c.get('isAnonymous')) throw new ApiError(403, 'forbidden', 'Demo data is only added to guest workspaces. Real accounts start empty.');
-    return out(c, await seedDemo(c.env.DB, market(), id));
+    return out(c, await seedDemo(c.env.DB, market(c), id));
   });
 
   // ---------- Watchlists ----------
   const ownedWatchlist = async (db: D1Database, userId: string, id: string) => { const w = await first<any>(db, 'SELECT * FROM watchlists WHERE id = ? AND user_id = ?', id, userId); if (!w) throw notFound('Watchlist'); return w; };
 
   app.openapi(route('get', '/watchlists', 'Watchlists', 'Your watchlists with quotes and 30-day sparklines'), async c => {
-    const id = uid(c); const m = market();
+    const id = uid(c); const m = market(c);
     const lists = await all<any>(c.env.DB, 'SELECT * FROM watchlists WHERE user_id = ? ORDER BY position, created_at', id);
     const items = await all<any>(c.env.DB, 'SELECT i.* FROM watchlist_items i JOIN watchlists w ON w.id = i.watchlist_id WHERE w.user_id = ? ORDER BY i.position, i.added_at', id);
     const ids = [...new Set(items.map(i => i.instrument_id))];
-    const quotes = new Map((await Promise.all(ids.map(x => m.quote(x).catch(() => null)))).filter(Boolean).map(q => [q!.instrumentId, q!]));
+    const quotes = new Map((await Promise.all(ids.map(x => m.quotes([x]).then(r => r[0]).catch(() => null)))).filter(Boolean).map(q => [q!.instrumentId, q!]));
     const spark = new Map(await Promise.all(ids.map(async x => [x, (await m.history(x, '1M').catch(() => [])).map(b => b.close)] as const)));
     return out(c, { data: lists.map(l => ({ id: l.id, name: l.name, position: l.position, items: items.filter(i => i.watchlist_id === l.id).map(i => ({ instrumentId: i.instrument_id, addedAt: i.added_at, instrument: m.lookup(i.instrument_id) ?? null, quote: quotes.get(i.instrument_id) ?? null, sparkline: spark.get(i.instrument_id) ?? [] })) })) });
   });
@@ -160,7 +162,7 @@ export function privateRoutes(market: () => Market) {
     return out(c, { ok: true });
   });
   app.openapi(route('get', '/portfolios/{id}', 'Portfolios', 'Holdings, cash, income and gains', { params: IdParam() }), async c => {
-    const u = uid(c); const s = await summarize(c.env.DB, market(), u, c.req.valid('param').id);
+    const u = uid(c); const s = await summarize(c.env.DB, market(c), u, c.req.valid('param').id);
     // Today's change across holdings: units x change since the previous close, at today's FX rate.
     let day = D(0), dayKnown = s.summary.holdings.length > 0;
     for (const h of s.summary.holdings) { const q = s.quotes.find(x => x?.instrumentId === h.instrumentId); if (!q) { dayKnown = false; continue; } day = day.plus(D(h.quantity).times(D(q.change)).times(D(s.fx[q.currency] ?? 1))); }
@@ -170,18 +172,18 @@ export function privateRoutes(market: () => Market) {
   });
   app.openapi(route('get', '/portfolios/{id}/performance', 'Portfolios', 'Time- and money-weighted returns, with an optional benchmark', { params: IdParam(), query: z.object({ benchmark: z.string().optional() }) }), async c => {
     const u = uid(c); const b = c.req.valid('query').benchmark; if (b) assertInstrument(b);
-    return out(c, { data: await performance(c.env.DB, market(), u, c.req.valid('param').id, b ?? null) });
+    return out(c, { data: await performance(c.env.DB, market(c), u, c.req.valid('param').id, b ?? null) });
   });
-  app.openapi(route('get', '/portfolios/{id}/xray', 'Portfolios', 'Portfolio X-Ray: direct and look-through exposure', { params: IdParam() }), async c => out(c, { data: await xray(c.env.DB, market(), uid(c), c.req.valid('param').id) }));
+  app.openapi(route('get', '/portfolios/{id}/xray', 'Portfolios', 'Portfolio X-Ray: direct and look-through exposure', { params: IdParam() }), async c => out(c, { data: await xray(c.env.DB, market(c), uid(c), c.req.valid('param').id) }));
   app.openapi(route('post', '/portfolios/{id}/what-if', 'Portfolios', 'Simulate a trade or contribution (nothing is recorded)', { params: IdParam(), body: { content: { 'application/json': { schema: z.object({
     type: z.enum(['buy', 'sell', 'contribute']), instrumentId: Instr.optional(), quantity: Money.optional(), amount: Money.optional(), price: Money.optional(), fxToBase: Money.optional(), fee: Money.default('0'), funding: z.enum(['cash', 'new_money']).default('cash') }) } } } }), async c => {
     const b = c.req.valid('json');
     if (b.type !== 'contribute' && !b.quantity && !b.amount) throw badRequest('Enter a quantity or an amount.');
     if (b.type === 'contribute' && !b.amount) throw badRequest('Enter an amount to contribute.');
-    return out(c, { data: await simulate(c.env.DB, market(), uid(c), c.req.valid('param').id, b as any) });
+    return out(c, { data: await simulate(c.env.DB, market(c), uid(c), c.req.valid('param').id, b as any) });
   });
   app.openapi(route('get', '/portfolios/{id}/income', 'Portfolios', 'Dividend income received and expected', { params: IdParam() }), async c => {
-    const u = uid(c); const m = market(); const s = await summarize(c.env.DB, m, u, c.req.valid('param').id);
+    const u = uid(c); const m = market(c); const s = await summarize(c.env.DB, m, u, c.req.valid('param').id);
     const base = s.summary.baseCurrency;
     const received = s.txs.filter(t => t.type === 'dividend' || t.type === 'interest').map(t => ({ date: t.tradeDate, instrumentId: t.instrumentId, amount: t.amount, currency: t.currency, amountBase: money(D(t.amount).times(t.currency === base ? D(1) : D(t.fxToBase ?? s.fx[t.currency] ?? 1))), baseCurrency: base, status: 'received' }));
     const today = new Date().toISOString().slice(0, 10); const upcoming: any[] = [];
@@ -196,7 +198,7 @@ export function privateRoutes(market: () => Market) {
     return out(c, { data: (await transactions(c.env.DB, u, id)).reverse() });
   });
   app.openapi(route('post', '/portfolios/{id}/transactions', 'Transactions', 'Record a transaction (a record of something that happened, not an order)', { params: IdParam(), body: { content: { 'application/json': { schema: TxBody } } } }), async c => {
-    const u = uid(c); const { id } = c.req.valid('param'); await ownedPortfolio(c.env.DB, u, id); const b = c.req.valid('json'); const m = market();
+    const u = uid(c); const { id } = c.req.valid('param'); await ownedPortfolio(c.env.DB, u, id); const b = c.req.valid('json'); const m = market(c);
     if (b.tradeDate > new Date().toISOString().slice(0, 10)) throw badRequest('The date can\'t be in the future.');
     const needsInst = ['buy', 'sell', 'split'].includes(b.type);
     if (needsInst && !b.instrumentId) throw badRequest('Choose an instrument.');
@@ -223,7 +225,7 @@ export function privateRoutes(market: () => Market) {
 
   const ImportBody = z.object({ csv: z.string().max(2_000_000), filename: z.string().max(200).default(''), hasHeader: z.boolean().default(true), dateFormat: z.enum(['ymd', 'mdy', 'dmy']).default('ymd'), defaultCurrency: z.string().length(3).optional(), mapping: z.record(z.string(), z.number().int().min(0)).optional() });
   async function prepareImport(c: any, portfolioId: string) {
-    const u = uid(c); await ownedPortfolio(c.env.DB, u, portfolioId); const b = c.req.valid('json'); const m = market();
+    const u = uid(c); await ownedPortfolio(c.env.DB, u, portfolioId); const b = c.req.valid('json'); const m = market(c);
     const rows = parseCsv(b.csv);
     if (!rows.length) throw badRequest('The file is empty.');
     if (rows.length > 5001) throw badRequest('Imports are limited to 5,000 rows at a time.');
@@ -312,10 +314,10 @@ export function privateRoutes(market: () => Market) {
     else await run(c.env.DB, "UPDATE alert_events SET read_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE user_id = ? AND read_at IS NULL", u);
     return out(c, { ok: true });
   });
-  app.openapi(route('post', '/alerts/evaluate', 'Alerts', 'Check your rules now'), async c => out(c, { data: await evaluateUser(c.env.DB, market(), uid(c)) }));
+  app.openapi(route('post', '/alerts/evaluate', 'Alerts', 'Check your rules now'), async c => out(c, { data: await evaluateUser(c.env.DB, market(c), uid(c)) }));
 
   app.openapi(route('get', '/dip-radar', 'Dip Radar', 'Everything you follow, measured against your rules', { query: z.object({ windowDays: z.coerce.number().int().min(5).max(365).default(30), basis: z.enum(['close', 'intraday']).default('close') }) }), async c => {
-    const u = uid(c); const m = market(); const q = c.req.valid('query');
+    const u = uid(c); const m = market(c); const q = c.req.valid('query');
     const rules = await all<RuleRow>(c.env.DB, 'SELECT * FROM alert_rules WHERE user_id = ? AND active = 1', u);
     const watched = await all<{ instrument_id: string; name: string }>(c.env.DB, 'SELECT i.instrument_id, w.name FROM watchlist_items i JOIN watchlists w ON w.id = i.watchlist_id WHERE w.user_id = ?', u);
     const portfolios = await all<{ id: string; name: string }>(c.env.DB, 'SELECT id, name FROM portfolios WHERE user_id = ?', u);
@@ -332,7 +334,7 @@ export function privateRoutes(market: () => Market) {
   });
 
   app.openapi(route('get', '/context/{id}', 'Dip Radar', 'Dip Context: what accompanies a decline, with sources', { params: IdParam() }), async c => {
-    const u = uid(c); const m = market(); const id = c.req.valid('param').id; const inst = m.instrument(id);
+    const u = uid(c); const m = market(c); const id = c.req.valid('param').id; const inst = m.instrument(id);
     const bench = inst.currency === 'CAD' ? 'index.tsx' : inst.assetClass === 'crypto' ? null : 'index.spx';
     const hist = await m.fullHistory(id);
     const ret = (bars: { date: string; adjClose: string }[], days: number) => { const end = bars[bars.length - 1]; const from = new Date(Date.parse(end.date) - days * 86400000).toISOString().slice(0, 10); const s = bars.find(b => b.date >= from) ?? bars[0]; return (Number(end.adjClose) / Number(s.adjClose) - 1) * 100; };
@@ -376,7 +378,7 @@ export function privateRoutes(market: () => Market) {
     if (b.alertRuleId && !(await first(c.env.DB, 'SELECT 1 FROM alert_rules WHERE id = ? AND user_id = ?', b.alertRuleId, u))) throw notFound('Rule');
   }
   app.openapi(route('get', '/plans', 'Plans', 'Your Buy Plans with commitments and cash allocation'), async c => {
-    const u = uid(c); const m = market();
+    const u = uid(c); const m = market(c);
     const plans = (await all<any>(c.env.DB, 'SELECT * FROM plans WHERE user_id = ? ORDER BY created_at', u)).map(planOut);
     const byPortfolio = new Map<string | null, any[]>(); for (const p of plans) byPortfolio.set(p.portfolioId, [...(byPortfolio.get(p.portfolioId) ?? []), p]);
     const allocations = [];
@@ -440,7 +442,7 @@ export function privateRoutes(market: () => Market) {
     return [...new Set([...w, ...h].map(r => r.instrument_id))];
   }
   app.openapi(route('get', '/calendar', 'Calendar', 'Events for what you follow, plus your plan and journal review dates', { query: z.object({ from: DateStr.optional(), to: DateStr.optional() }) }), async c => {
-    const u = uid(c); const m = market(); const q = c.req.valid('query');
+    const u = uid(c); const m = market(c); const q = c.req.valid('query');
     const from = q.from ?? new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10), to = q.to ?? new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
     if ((Date.parse(to) - Date.parse(from)) / 86400000 > 366) throw badRequest('The calendar range is limited to one year.');
     const ev = (await Promise.all((await followedIds(c, u)).map(id => m.events(id)))).flat().filter(e => e.date >= from && e.date <= to).map(e => ({ ...e, source: 'market' }));
@@ -449,7 +451,7 @@ export function privateRoutes(market: () => Market) {
     return out(c, { data: [...ev, ...plans, ...journal].sort((a, b) => a.date.localeCompare(b.date)), from, to });
   });
   app.openapi(route('get', '/brief', 'Calendar', 'Your Market Brief'), async c => {
-    const u = uid(c); const m = market(); const ids = await followedIds(c, u);
+    const u = uid(c); const m = market(c); const ids = await followedIds(c, u);
     const quotes = (await Promise.all(ids.map(id => m.quote(id).catch(() => null)))).filter(Boolean);
     const moves = quotes.filter(q => Math.abs(Number(q!.changePct)) >= 2).sort((a, b) => Math.abs(Number(b!.changePct)) - Math.abs(Number(a!.changePct))).slice(0, 6);
     const alerts = await all<any>(c.env.DB, 'SELECT * FROM alert_events WHERE user_id = ? AND created_at >= ? ORDER BY created_at DESC LIMIT 10', u, new Date(Date.now() - 3 * 86400000).toISOString());
@@ -467,7 +469,7 @@ export function privateRoutes(market: () => Market) {
 
   // ---------- Community portfolios ----------
   app.openapi(route('get', '/community/portfolios', 'Community', 'Portfolios people share (percentages only), plus labelled samples', { query: z.object({ filter: z.enum(['all', 'following']).default('all') }) }), async c => {
-    const u = uid(c); const m = market(); const f = c.req.valid('query').filter;
+    const u = uid(c); const m = market(c); const f = c.req.valid('query').filter;
     const follows = new Set((await all<{ portfolio_id: string }>(c.env.DB, 'SELECT portfolio_id FROM portfolio_follows WHERE user_id = ?', u)).map(r => r.portfolio_id));
     const counts = new Map((await all<{ portfolio_id: string; n: number }>(c.env.DB, 'SELECT portfolio_id, COUNT(*) AS n FROM portfolio_follows GROUP BY portfolio_id')).map(r => [r.portfolio_id, r.n]));
     const rows = await all<any>(c.env.DB, 'SELECT s.*, p.handle, p.display_name FROM shared_portfolios s JOIN profiles p ON p.user_id = s.user_id ORDER BY s.updated_at DESC LIMIT 60');
@@ -489,7 +491,7 @@ export function privateRoutes(market: () => Market) {
     const u = uid(c); const { id } = c.req.valid('param'); const p = await ownedPortfolio(c.env.DB, u, id);
     const row = await sharedRow(c.env.DB, id);
     const profile = await first<any>(c.env.DB, 'SELECT handle, display_name FROM profiles WHERE user_id = ?', u);
-    const preview = await sharedView(c.env.DB, market(), { portfolio_id: id, user_id: u, title: row?.title ?? p.name, note: row?.note ?? '', show_holdings: row ? row.show_holdings : 1, handle: profile?.handle, display_name: profile?.display_name });
+    const preview = await sharedView(c.env.DB, market(c), { portfolio_id: id, user_id: u, title: row?.title ?? p.name, note: row?.note ?? '', show_holdings: row ? row.show_holdings : 1, handle: profile?.handle, display_name: profile?.display_name });
     return out(c, { data: { shared: Boolean(row), canShare: p.kind === 'manual' || p.kind === 'connected', reason: p.kind === 'demo' ? 'The demo portfolio has made-up holdings, so it can\'t be shared.' : null, title: row?.title ?? p.name, note: row?.note ?? '', showHoldings: row ? row.show_holdings === 1 : true, handle: profile?.handle ?? null, preview } });
   });
   app.openapi(route('put', '/portfolios/{id}/share', 'Community', 'Share this portfolio (percentages only)', { params: IdParam(), body: { content: { 'application/json': { schema: z.object({ title: z.string().trim().min(1).max(60), note: z.string().max(280).default(''), showHoldings: z.boolean().default(true), handle: z.string().regex(/^[a-z0-9_]{3,20}$/, 'Use 3 to 20 lowercase letters, numbers or underscores.') }) } } } }), async c => {
@@ -524,6 +526,20 @@ export function privateRoutes(market: () => Market) {
     await run(c.env.DB, has ? 'DELETE FROM bookmarks WHERE user_id = ? AND post_id = ?' : 'INSERT INTO bookmarks (user_id, post_id) VALUES (?, ?)', u, id);
     return out(c, { ok: true, bookmarked: !has });
   });
+
+  // ---------- Personal data keys ----------
+  app.openapi(route('get', '/data-keys', 'Account', 'Your connected market-data keys (never returns the key itself)'), async c => out(c, { data: await listConnections(c.env.DB, uid(c)) }));
+  app.openapi(route('put', '/data-keys/alpaca', 'Account', 'Connect your own free Alpaca key for real US stock prices', { body: { content: { 'application/json': { schema: z.object({ keyId: z.string().trim().min(10).max(64), secret: z.string().trim().min(20).max(128) }) } } } }), async c => {
+    const u = uid(c);
+    if (c.get('isAnonymous')) throw new ApiError(403, 'forbidden', 'Create an account first. Demo workspaces can\'t store data keys.');
+    const b = c.req.valid('json');
+    const check = c.env.ENVIRONMENT === 'test' && b.keyId.startsWith('TEST') ? 'ok' : await verifyAlpaca(b);
+    if (check === 'invalid') throw new ApiError(400, 'bad_request', 'Alpaca didn\'t accept that key. Check that you copied both the API Key ID and the Secret Key from the same pair.');
+    if (check === 'unavailable') throw new ApiError(502, 'upstream_error', 'Couldn\'t reach Alpaca to check the key. Try again in a minute.');
+    await saveAlpaca(c.env.DB, c.env.DATA_KEY_SECRET ?? c.env.BETTER_AUTH_SECRET, u, b);
+    return out(c, { data: (await listConnections(c.env.DB, u)).find(x => x.provider === 'alpaca') });
+  });
+  app.openapi(route('delete', '/data-keys/{provider}', 'Account', 'Disconnect a data key', { params: IdParam('provider') }), async c => { await removeConnection(c.env.DB, uid(c), c.req.valid('param').provider); return out(c, { ok: true }); });
 
   return app;
 }

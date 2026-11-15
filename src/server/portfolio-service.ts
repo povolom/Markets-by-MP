@@ -59,7 +59,9 @@ export async function performance(db: D1Database, m: Market, userId: string, por
   const base = summary.baseCurrency;
   const ids = [...new Set(txs.map(t => t.instrumentId).filter(Boolean) as string[])];
   const hist = new Map<string, Bar[]>();
-  await Promise.all(ids.map(async id => hist.set(id, await m.fullHistory(id))));
+  const missing: string[] = [];
+  await Promise.all(ids.map(async id => hist.set(id, await m.fullHistory(id).catch(() => { missing.push(id); return [] as Bar[]; }))));
+  if (missing.length) return { available: false, reason: `Past values need price history for ${missing.map(id => m.instrument(id).symbol).join(', ')}. Connect a free data key in Settings to unlock US stock prices.`, series: [], summary };
   const fxIds: Record<string, string> = { USD: 'fx.usdcad' };
   const fxHist = base === 'CAD' ? await m.fullHistory('fx.usdcad') : await m.fullHistory('fx.usdcad');
   let fxI = 0;

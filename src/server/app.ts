@@ -6,7 +6,9 @@ import type { AppEnv } from './env';
 import { ApiError, errorResponse } from './http';
 import { createMarket, type Market } from './market';
 import { audienceOf, edgeCache, publicCors, rateLimit, requestId, sameOrigin } from './middleware';
-import { getRegistry } from './providers/registry';
+import { getRegistry, withPersonal, type Registry } from './providers/registry';
+import { alpacaInfo, createAlpaca } from './providers/alpaca';
+import { alpacaCreds, markInvalid } from './data-keys';
 import { CHANGELOG, publicRoutes } from './routes/public';
 import { privateRoutes } from './routes/private';
 
@@ -15,7 +17,8 @@ export type SessionResolver = (c: Parameters<MiddlewareHandler<AppEnv>>[0]) => P
 const PUBLIC_PATHS = ['/api/v1/status', '/api/v1/coverage', '/api/v1/changelog', '/api/v1/assets/*', '/api/v1/quotes', '/api/v1/markets/*', '/api/v1/news', '/api/v1/screeners/*', '/api/v1/fx', '/api/v1/openapi.json'];
 
 export function createApi(resolveSession: SessionResolver) {
-  let markets: { app: Market; api: Market } | null = null;
+  let markets: { app: Market; api: Market; registry: Registry } | null = null;
+  const personal = new Map<string, { keyId: string; m: Market }>();
   const app = new OpenAPIHono<AppEnv>({
     defaultHook: (result, c) => {
       if (!result.success) return errorResponse(c, new ApiError(400, 'bad_request', 'Some fields are missing or invalid.', result.error.issues.map(i => ({ path: i.path.join('.'), message: i.message }))));
@@ -23,9 +26,23 @@ export function createApi(resolveSession: SessionResolver) {
   });
   const getMarkets = (env: AppEnv['Bindings']) => (markets ??= (() => {
     const r = getRegistry(env);
-    return { app: createMarket(r.market, r.providers, { audience: 'app', sourceOf: r.sourceOf }), api: createMarket(r.market, r.providers, { audience: 'api', sourceOf: r.sourceOf }) };
+    return { registry: r, app: createMarket(r.market, r.providers, { audience: 'app', sourceOf: r.sourceOf }), api: createMarket(r.market, r.providers, { audience: 'api', sourceOf: r.sourceOf }) };
   })());
   const getMarket = (env: AppEnv['Bindings']) => getMarkets(env).app;
+  /** The market a signed-in user sees: the shared one, plus their own data key for US stocks if they connected one. */
+  const marketFor = async (env: AppEnv['Bindings'], userId: string | null): Promise<Market> => {
+    const ms = getMarkets(env);
+    if (!userId) return ms.app;
+    const creds = await alpacaCreds(env.DB, env.DATA_KEY_SECRET ?? env.BETTER_AUTH_SECRET, userId).catch(() => null);
+    if (!creds) { personal.delete(userId); return ms.app; }
+    const hit = personal.get(userId); if (hit && hit.keyId === creds.keyId) return hit.m;
+    const r = ms.registry;
+    const alpaca = createAlpaca(creds, () => { void markInvalid(env.DB, userId); personal.delete(userId); });
+    const m = createMarket(withPersonal(r.market, alpaca), [...r.providers, alpacaInfo], { audience: 'app', sourceOf: id => r.sourceOf(id), namespace: `u:${userId}` });
+    if (personal.size > 500) personal.clear();
+    personal.set(userId, { keyId: creds.keyId, m });
+    return m;
+  };
 
   app.use('*', requestId);
   app.onError((e, c) => errorResponse(c, e));
@@ -35,6 +52,7 @@ export function createApi(resolveSession: SessionResolver) {
     getMarkets(c.env);
     const s = await resolveSession(c);
     c.set('userId', s?.userId ?? null); c.set('isAnonymous', s?.isAnonymous ?? false);
+    c.set('market', await marketFor(c.env, s?.userId ?? null));
     await next();
   });
   for (const p of PUBLIC_PATHS) app.use(p, publicCors);
@@ -43,8 +61,8 @@ export function createApi(resolveSession: SessionResolver) {
   app.use('/api/v1/*', sameOrigin);
 
   // Public routes serve the app and outside clients from the same URLs; each gets what it may see.
-  app.route('/api/v1', publicRoutes(c => markets![audienceOf(c)]));
-  app.route('/api/v1', privateRoutes(() => markets!.app));
+  app.route('/api/v1', publicRoutes(c => audienceOf(c) === 'api' ? markets!.api : (c.get('market') ?? markets!.app)));
+  app.route('/api/v1', privateRoutes(c => c?.get('market') ?? markets!.app));
 
   app.openAPIRegistry.registerComponent('securitySchemes', 'session', { type: 'apiKey', in: 'cookie', name: 'better-auth.session_token', description: 'Session cookie set by signing in on markets.marcantoniopovolo.com. Private endpoints are same-origin only; third-party access to private data will use explicit, scoped consent (not yet available).' });
   app.doc31('/api/v1/openapi.json', c => ({
@@ -58,5 +76,5 @@ export function createApi(resolveSession: SessionResolver) {
     tags: [{ name: 'Market data', description: 'Keyless public endpoints.' }, { name: 'Service' }, { name: 'Account' }, { name: 'Watchlists' }, { name: 'Portfolios' }, { name: 'Transactions' }, { name: 'Alerts' }, { name: 'Dip Radar' }, { name: 'Plans' }, { name: 'Journal' }, { name: 'Calendar' }, { name: 'Connections' }, { name: 'Community' }],
   }));
   app.get('/api/v1/docs', Scalar({ url: '/api/v1/openapi.json', pageTitle: 'Markets API reference', theme: 'kepler' } as any));
-  return { app, getMarket };
+  return { app, getMarket, marketFor };
 }

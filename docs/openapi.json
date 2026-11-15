@@ -7110,6 +7110,211 @@
      }
     }
    }
+  },
+  "/api/v1/data-keys": {
+   "get": {
+    "tags": [
+     "Account"
+    ],
+    "summary": "Your connected market-data keys (never returns the key itself)",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Your connected market-data keys (never returns the key itself)",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/data-keys/alpaca": {
+   "put": {
+    "tags": [
+     "Account"
+    ],
+    "summary": "Connect your own free Alpaca key for real US stock prices",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "keyId": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 64
+         },
+         "secret": {
+          "type": "string",
+          "minLength": 20,
+          "maxLength": 128
+         }
+        },
+        "required": [
+         "keyId",
+         "secret"
+        ]
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Connect your own free Alpaca key for real US stock prices",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/data-keys/{provider}": {
+   "delete": {
+    "tags": [
+     "Account"
+    ],
+    "summary": "Disconnect a data key",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64
+      },
+      "required": true,
+      "name": "provider",
+      "in": "path"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Disconnect a data key",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
   }
  },
  "webhooks": {}

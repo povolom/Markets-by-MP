@@ -18,6 +18,8 @@ export interface MarketOptions {
   /** 'app' = the Markets app; 'api' = outside clients, who only get data a provider allows Markets to redistribute. */
   audience: 'app' | 'api';
   sourceOf: (id: string) => ProviderInfo;
+  /** Separates in-flight request sharing between markets (each user's own key gets its own). */
+  namespace?: string;
 }
 
 export function createMarket(p: MarketDataProvider, providers: ProviderInfo[], opts: MarketOptions = { audience: 'app', sourceOf: () => p.info }) {
@@ -46,12 +48,16 @@ export function createMarket(p: MarketDataProvider, providers: ProviderInfo[], o
     /** Finds instruments by symbol, company name, nickname or a close misspelling, best match first. */
     search(q: string, assetClass?: string) { return searchInstruments(q, i => (!assetClass || i.assetClass === assetClass) && allowed(i.id)); },
     sourceOf: (id: string) => opts.sourceOf(id),
-    quote: (id: string): Promise<Quote> => { inst(id); return coalesce(`q:${id}`, () => guard('a quote', () => p.quote(id, new Date()))); },
+    quote: (id: string): Promise<Quote> => { inst(id); return coalesce(`${opts.namespace ?? opts.audience}:q:${id}`, () => guard('a quote', () => p.quote(id, new Date()))); },
+    /** Batch quotes. A locked instrument comes back as { instrumentId, locked } instead of failing the batch. */
     async quotes(ids: string[]) {
       if (ids.length > MAX_BATCH) throw new ApiError(400, 'bad_request', `At most ${MAX_BATCH} instruments per request.`);
-      return Promise.all(ids.map(id => svc.quote(id)));
+      return Promise.all(ids.map(id => svc.quote(id).catch(e => {
+        if (e instanceof ApiError && e.code === 'locked') return { instrumentId: id, locked: true, lockReason: (e.details as { reason?: string })?.reason ?? 'needs_key', message: e.message, price: null, previousClose: null, change: null, changePct: null, currency: inst(id).currency, meta: null } as unknown as Quote;
+        throw e;
+      })));
     },
-    fullHistory: (id: string): Promise<Bar[]> => { inst(id); return coalesce(`h:${id}`, () => guard('price history', () => p.history(id))); },
+    fullHistory: (id: string): Promise<Bar[]> => { inst(id); return coalesce(`${opts.namespace ?? opts.audience}:h:${id}`, () => guard('price history', () => p.history(id))); },
     async history(id: string, range: Range | undefined, from?: string, to?: string) {
       const bars = await svc.fullHistory(id);
       const last = bars[bars.length - 1]?.date ?? new Date().toISOString().slice(0, 10);
@@ -101,9 +107,9 @@ export function createMarket(p: MarketDataProvider, providers: ProviderInfo[], o
     },
     async overview() {
       const ids = ['index.spx', 'index.ixic', 'index.tsx', 'fx.usdcad', 'crypto.btc-usd', 'crypto.eth-usd'];
-      const benchmarks = await svc.quotes(ids.filter(allowed));
+      const benchmarks = (await svc.quotes(ids.filter(allowed))).filter(q => !(q as any).locked);
       const tradable = featured().filter(i => i.tradable && i.assetClass !== 'fx' && i.assetClass !== 'crypto');
-      const qs = await svc.quotes(tradable.map(i => i.id).slice(0, MAX_BATCH));
+      const qs = (await svc.quotes(tradable.map(i => i.id).slice(0, MAX_BATCH))).filter(q => !(q as any).locked);
       const sorted = [...qs].sort((a, b) => Number(b.changePct) - Number(a.changePct));
       return { benchmarks, gainers: sorted.slice(0, 5), decliners: sorted.slice(-5).reverse(), asOf: new Date().toISOString(), meta: benchmarks[0]?.meta };
     },

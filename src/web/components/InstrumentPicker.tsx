@@ -12,7 +12,7 @@ export function InstrumentPicker({ value, onChange, label = 'Asset', tradableOnl
   const [sel, setSel] = useState(0);
   const input = useRef<HTMLInputElement>(null);
   const current = useApi<{ data: Inst }>(value ? `/assets/${value}` : null, [value]);
-  const quote = useApi<{ data: any }>(value && !editing ? `/assets/${value}/quote` : null, [value, editing]);
+  const quote = useApi<{ data: any[] }>(value && !editing ? `/quotes?ids=${value}` : null, [value, editing]);
   const { items, qmap, debounced, loading } = useAssetSearch(q, { limit: 6, tradableOnly, enabled: editing });
   useEffect(() => { if (!value) setEditing(true); }, [value]);
   const pick = (i: Inst) => { onChange(i.id, i); setQ(''); setEditing(false); };
@@ -23,7 +23,7 @@ export function InstrumentPicker({ value, onChange, label = 'Asset', tradableOnl
       <span className="picker-label" id={`${id}-label`}>{label}</span>
       {!editing && current.data?.data ? (
         <div className="picked" aria-labelledby={`${id}-label`}>
-          <AssetRowBody inst={current.data.data} quote={quote.data?.data} />
+          <AssetRowBody inst={current.data.data} quote={quote.data?.data?.[0]} />
           <button type="button" className="btn sm" onClick={startEditing} aria-label={`Change ${label.toLowerCase()}`}>Change</button>
         </div>
       ) : (

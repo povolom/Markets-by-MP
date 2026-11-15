@@ -37,7 +37,9 @@ export async function evaluateUser(db: D1Database, m: Market, userId: string, no
   for (const r of rules) {
     for (const t of await ruleTargets(db, m, r)) {
       const inst = m.lookup(t.id); if (!inst) continue;
-      const [bars, q] = await Promise.all([m.fullHistory(t.id), m.quote(t.id)]);
+      let bars, q;
+      try { [bars, q] = await Promise.all([m.fullHistory(t.id), m.quote(t.id)]); }
+      catch (e) { results.push({ ruleId: r.id, instrumentId: t.id, matched: false, fired: false, explanation: 'No price available', unavailable: (e as Error).message }); continue; }
       const ev = evaluateRule(toRuleInput(r), bars, q.price, t.avgCost);
       const st = await first<{ armed: number; last_triggered_at: string | null }>(db, 'SELECT armed, last_triggered_at FROM alert_state WHERE rule_id = ? AND instrument_id = ?', r.id, t.id);
       const out = step({ armed: st ? st.armed === 1 : true, lastTriggeredAt: st?.last_triggered_at ?? null }, ev, toRuleInput(r), now);
@@ -56,11 +58,11 @@ export async function evaluateUser(db: D1Database, m: Market, userId: string, no
 }
 
 /** Cron entry point: every user with an active rule, oldest first, bounded per run. */
-export async function evaluateAll(db: D1Database, m: Market, maxUsers = 200) {
+export async function evaluateAll(db: D1Database, marketFor: (userId: string) => Promise<Market>, maxUsers = 200) {
   const users = await all<{ user_id: string }>(db, 'SELECT DISTINCT user_id FROM alert_rules WHERE active = 1 LIMIT ?', maxUsers);
   let fired = 0, failed = 0;
   for (const u of users) {
-    try { fired += (await evaluateUser(db, m, u.user_id)).fired; }
+    try { fired += (await evaluateUser(db, await marketFor(u.user_id), u.user_id)).fired; }
     catch (e) { failed++; console.error(JSON.stringify({ level: 'error', job: 'alerts', error: String((e as Error).message) })); }
   }
   console.log(JSON.stringify({ level: 'info', job: 'alerts', users: users.length, fired, failed }));

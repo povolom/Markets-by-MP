@@ -5,6 +5,7 @@ import { Link, navigate } from '../lib/router';
 import { CLASS_LABEL, dateFmt, priceFmt, timeAgo } from '../lib/format';
 import { useMe } from '../components/Shell';
 import { InstrumentPicker } from '../components/InstrumentPicker';
+import { DataKeys } from '../components/DataKeys';
 import { AssetCell, Change, DataBadge, Dialog, Empty, ErrorState, Icon, Loading, Price, Seg, useToast } from '../components/ui';
 import { PostCard } from './core';
 
@@ -152,6 +153,7 @@ export function Settings() {
     <>
       <div className="page-head"><div><h1>Settings</h1><p>{me.isGuest ? 'You\'re using a guest demo workspace.' : me.email}</p></div></div>
       {me.isGuest && <div className="notice green"><Icon name="info" /><span>Create an account to keep your watchlists, rules, plans and journal. <Link to="/signup">Create an account</Link></span></div>}
+      <DataKeys guest={me.isGuest} />
       <div className="grid-2" style={{ alignItems: 'start' }}>
         <div className="card stack"><h2>Profile</h2>
           <label className="field">Display name<input className="input" value={f.displayName} maxLength={60} onChange={e => set({ ...f, displayName: e.target.value })} /></label>

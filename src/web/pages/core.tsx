@@ -6,7 +6,7 @@ import { CLASS_LABEL, SESSION_LABEL, dateFmt, money, priceFmt, signedPct, timeAg
 import { useMe } from '../components/Shell';
 import { LineChart } from '../components/Chart';
 import { InstrumentPicker } from '../components/InstrumentPicker';
-import { AssetCell, Change, ClassLabel, DataBadge, Dialog, Empty, ErrorState, Icon, Loading, Price, Seg, Spark, useToast } from '../components/ui';
+import { AssetCell, Change, ClassLabel, DataBadge, Dialog, Empty, ErrorState, Icon, Loading, LockedPanel, LockedPrice, Price, Seg, Spark, useToast } from '../components/ui';
 import { RuleDialog } from './dips';
 import { AddAssets } from '../components/AddAssets';
 
@@ -29,7 +29,7 @@ export function Overview() {
         <div className="card flush">
           <div className="card-head"><h2>Watchlists</h2><Link to="/app/watchlists" className="btn ghost sm">Manage</Link></div>
           {wl.loading && !wl.data ? <div style={{ padding: 18 }}><Loading /></div> : wl.data?.data.length ? (
-            <table className="t responsive"><tbody>{wl.data.data.flatMap(l => l.items).slice(0, 7).map((i: any) => <tr key={i.instrumentId}><td><AssetCell inst={i.instrument} /></td><td className="hide-m"><Spark values={i.sparkline} w={80} h={26} /></td><td className="r"><Price value={i.quote?.price} /><br /><Change pct={i.quote?.changePct} /></td></tr>)}</tbody></table>
+            <table className="t responsive"><tbody>{wl.data.data.flatMap(l => l.items).slice(0, 7).map((i: any) => <tr key={i.instrumentId}><td><AssetCell inst={i.instrument} /></td><td className="hide-m"><Spark values={i.sparkline} w={80} h={26} /></td><td className="r">{i.quote?.locked ? <LockedPrice reason={i.quote.lockReason} /> : <><Price value={i.quote?.price} /><br /><Change pct={i.quote?.changePct} /></>}</td></tr>)}</tbody></table>
           ) : <Empty title="No watchlists yet" action={<Link to="/app/watchlists" className="btn primary">Create a watchlist</Link>}>Follow anything: stocks, ETFs, crypto, indexes.</Empty>}
         </div>
         {me?.preferences?.dailyBrief === false ? <div className="card"><Empty title="Market Brief is hidden" action={<Link to="/app/notifications" className="btn sm">Turn it back on</Link>} /></div> : <Brief data={brief.data?.data} loading={brief.loading} error={brief.error} />}
@@ -151,9 +151,9 @@ export function Watchlists() {
                   <tr key={i.instrumentId}>
                     <td><AssetCell inst={i.instrument} /></td>
                     <td className="hide-m"><Spark values={i.sparkline} /></td>
-                    <td className="r">{i.quote ? <Price value={i.quote.price} currency={i.quote.currency} /> : <span className="faint">Unavailable</span>}</td>
-                    <td className="r"><Change pct={i.quote?.changePct} /></td>
-                    <td className="r hide-m faint">{i.quote ? `${SESSION_LABEL[i.quote.session]} · ${timeAgo(i.quote.meta.observedAt)}` : '—'}</td>
+                    <td className="r">{i.quote?.locked ? <LockedPrice reason={i.quote.lockReason} /> : i.quote ? <Price value={i.quote.price} currency={i.quote.currency} /> : <span className="faint">Unavailable</span>}</td>
+                    <td className="r">{!i.quote?.locked && <Change pct={i.quote?.changePct} />}</td>
+                    <td className="r hide-m faint">{i.quote && !i.quote.locked ? `${SESSION_LABEL[i.quote.session]} · ${timeAgo(i.quote.meta.observedAt)}` : '—'}</td>
                     <td className="r"><button className="icon-btn" aria-label={`Remove ${i.instrument?.symbol}`} onClick={() => void run(() => api.del(`/watchlists/${list.id}/items/${i.instrumentId}`), 'Removed.')}><Icon name="close" size={16} /></button></td>
                   </tr>))}</tbody>
               </table>
@@ -193,6 +193,19 @@ export function Asset({ id, signedIn }: { id: string; signedIn: boolean }) {
   const snap = dip.data?.data;
   if (inst.error) return <ErrorState error={inst.error} />;
   if (!i) return <div className="card"><Loading rows={6} /></div>;
+  const lockErr = (quote.error as any)?.code === 'locked' ? quote.error as any : null;
+  if (lockErr) return (
+    <>
+      <div className="page-head">
+        <div className="stack-sm">
+          <div className="row wrap"><ClassLabel c={i.assetClass} /><span className="faint">{i.symbol} · {i.exchangeName} · {i.currency}</span></div>
+          <h1>{i.name}</h1>
+          <LockedPrice reason={lockErr.details?.reason} size="lg" />
+        </div>
+      </div>
+      <LockedPanel reason={lockErr.details?.reason} symbol={i.symbol} />
+    </>
+  );
   const equity = i.assetClass === 'stock', fund = i.assetClass === 'etf' || i.assetClass === 'mutual_fund';
   const points = (hist.data?.data ?? []).map(b => ({ date: b.date, value: Number(priceMode === 'raw' ? b.close : b.adjClose) }));
   const today = new Date().toISOString().slice(0, 10);

@@ -10,6 +10,9 @@ export function setFetcher(f: Fetcher | null) { fetcher = f ?? ((url, init) => f
 const memory = new Map<string, { until: number; value: unknown }>();
 const inflight = new Map<string, Promise<unknown>>();
 
+/** Uncached fetch through the same (test-replaceable) network layer. */
+export const rawFetch = (url: string, init?: RequestInit) => fetcher(url, init);
+
 export class UpstreamError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }

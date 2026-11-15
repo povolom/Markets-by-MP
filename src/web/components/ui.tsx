@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from '../lib/router';
 import { direction, signedPct, signedMoney, priceFmt, timeAgo, CLASS_LABEL } from '../lib/format';
-import type { ApiError } from '../lib/api';
+import { authClient, type ApiError } from '../lib/api';
 
 const P: Record<string, string> = {
   overview: 'M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z',
@@ -26,7 +26,7 @@ const P: Record<string, string> = {
   up: 'M12 19V5M5 12l7-7 7 7', down: 'M12 5v14M19 12l-7 7-7-7',
   check: 'M5 12l5 5 9-10', info: 'M12 8h.01M11 12h1v5h1 M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z',
   external: 'M14 4h6v6 M20 4l-9 9 M18 14v6H4V6h6', sun: 'M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10z M12 1v2M12 21v2M1 12h2M21 12h2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4',
-  moon: 'M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z', xray: 'M3 7V4h3 M21 7V4h-3 M3 17v3h3 M21 17v3h-3 M8 12h8 M12 8v8',
+  moon: 'M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z', lock: 'M6 11h12v10H6z M8.5 11V7.5a3.5 3.5 0 0 1 7 0V11', key: 'M14.5 4a5.5 5.5 0 1 1-4.9 8L3 18.6V21h2.4l.6-.6v-1.9h1.9l1.2-1.2v-1.9h1.9l1-1A5.5 5.5 0 0 1 14.5 4z M16 8h.01', xray: 'M3 7V4h3 M21 7V4h-3 M3 17v3h3 M21 17v3h-3 M8 12h8 M12 8v8',
 };
 export function Icon({ name, size = 18, title }: { name: keyof typeof P | string; size?: number; title?: string }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden={title ? undefined : true} role={title ? 'img' : undefined}>{title && <title>{title}</title>}<path d={P[name] ?? P.info} /></svg>;
@@ -100,8 +100,47 @@ export function ClassLabel({ c }: { c: string }) { return <span className="chip"
 export function Loading({ rows = 3 }: { rows?: number }) {
   return <div className="stack-sm" aria-busy="true" aria-label="Loading">{Array.from({ length: rows }, (_, i) => <div key={i} className="skeleton" style={{ height: 18, width: `${90 - i * 12}%` }} />)}</div>;
 }
+/** Where a locked price sends you: create an account first, then connect a free key in Settings. */
+function useUnlock(reason?: string) {
+  const s = authClient.useSession();
+  const user = s.data?.user as { isAnonymous?: boolean } | undefined;
+  if (reason === 'no_source') return { to: null, label: 'No free source yet' };
+  if (!user || user.isAnonymous) return { to: '/signup', label: 'Create an account to unlock' };
+  return { to: '/app/settings#data', label: 'Connect a free key to unlock' };
+}
+
+/** A price you can't see yet: blurred, with a lock and the next step. Never a made-up number. */
+export function LockedPrice({ reason, size = 'sm' }: { reason?: string; size?: 'sm' | 'lg' }) {
+  const u = useUnlock(reason);
+  const body = <><span className="locked-blur" aria-hidden>{size === 'lg' ? '000.00' : '00.00'}</span><span className="locked-tag"><Icon name="lock" size={size === 'lg' ? 15 : 12} />{size === 'lg' ? u.label : reason === 'no_source' ? 'No source' : 'Locked'}</span></>;
+  return u.to ? <Link to={u.to} className={`locked ${size}`} title={u.label} aria-label={`Price locked. ${u.label}`} onClick={e => e.stopPropagation()}>{body}</Link> : <span className={`locked ${size}`} title={u.label} aria-label={`Price unavailable. ${u.label}`}>{body}</span>;
+}
+
+export function LockedPanel({ reason, symbol }: { reason?: string; symbol?: string }) {
+  const u = useUnlock(reason);
+  const s = authClient.useSession();
+  const signedIn = Boolean(s.data && !(s.data.user as { isAnonymous?: boolean }).isAnonymous);
+  return (
+    <div className="locked-panel">
+      <div className="locked-chart" aria-hidden><svg viewBox="0 0 400 120" preserveAspectRatio="none"><path d="M0,90 C40,70 60,95 100,72 S170,40 210,58 S280,20 320,36 S380,18 400,24" /></svg></div>
+      <div className="locked-body">
+        <span className="locked-ico"><Icon name="lock" size={20} /></span>
+        {reason === 'no_source' ? <>
+          <h3>No free price source for {symbol ?? 'this asset'} yet</h3>
+          <p className="muted small">Markets only shows prices it's allowed to show. Canadian listings outside the core list need a licensed data feed, which isn't connected yet. You can still watch it and log trades.</p>
+        </> : <>
+          <h3>See real prices for {symbol ?? 'this asset'}</h3>
+          <p className="muted small">{signedIn ? 'Connect a free Alpaca key and Markets shows you real US stock and ETF prices, charts and dip alerts. Your key is encrypted and only ever used for you.' : 'Create a free account, then connect a free Alpaca key to see real US stock and ETF prices, charts and dip alerts. It takes about two minutes.'}</p>
+          {u.to && <Link to={u.to} className="btn primary"><Icon name={signedIn ? 'key' : 'lock'} size={16} />{signedIn ? 'Connect a free key' : 'Create a free account'}</Link>}
+        </>}
+      </div>
+    </div>
+  );
+}
+
 export function ErrorState({ error, retry }: { error: ApiError | Error | null; retry?: () => void }) {
   if (!error) return null;
+  if ((error as ApiError).code === 'locked') return <LockedPanel reason={(error as ApiError).details?.reason} />;
   const status = (error as ApiError).status;
   return (
     <div className="notice warn" role="alert">
