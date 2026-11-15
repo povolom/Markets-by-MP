@@ -1,66 +1,73 @@
 # Markets by MP
 
-Your TSX and US stocks together, in Canadian dollars: live US prices, today's change, total return, allocation and a chart of your whole portfolio. It installs as an app on a phone or computer and keeps your keys and holdings in your own browser.
+**Your entire investing world.** Research. Track. Discover. Plan.
 
-**Status:** coming soon at https://markets.marcantoniopovolo.com · [About the project](https://marcantoniopovolo.com/projects/markets) · Open source (MIT)
+Markets by MP is an investing platform and the **Markets API** that powers it: watchlists, portfolio tracking, Dip Radar, Buy Plans, What-If, Portfolio X-Ray, Similar & Different, a calendar, a journal and a developer API, in one place.
 
-The app works; I'm testing it before opening it up. It started as Portfolio Lab, then Investing Tracker.
+**Status: public beta at https://markets.marcantoniopovolo.com.** All market data is **generated demo data**, labelled everywhere it appears, until a licensed production provider is connected. See [docs/FEATURES.md](docs/FEATURES.md) for exactly what is real, demo-only or blocked.
 
-Built by [Marcantonio Povolo](https://marcantoniopovolo.com), a Computer Engineering student at Toronto Metropolitan University. I decide what it does and review and test each change; AI coding tools help write the code.
+Built by [Marcantonio Povolo](https://marcantoniopovolo.com). I decide what it does and review and test each change; AI coding tools help write the code. Open source under the [MIT License](LICENSE): fork it and make your own version.
 
-## Data (all free)
-
-| What | Source | Limit |
-|---|---|---|
-| US stock prices, live | [Finnhub](https://finnhub.io) (free key) | 60 requests a minute, no daily cap |
-| Toronto (TSX) prices and price history | [Alpha Vantage](https://www.alphavantage.co) (free key, optional) | 25 requests a day, delayed |
-| USD to CAD | [Frankfurter](https://frankfurter.dev) (no key) | Daily reference rate |
-
-No free source offers real-time Toronto prices, so TSX prices are delayed. Without keys, the app shows a demo portfolio with made-up holdings and sample prices.
-
-## Try it locally
+## How it fits together
 
 ```
-cd app
-python3 -m http.server
+Browser (React app, PWA)          Other clients (scripts, future native apps)
+        │                                       │
+        └──────────────► Markets API  /api/v1 ◄─┘    (Hono + OpenAPI, src/server)
+                          │   │    │
+          accounts ◄──────┘   │    └──────► provider registry ─► demo provider (default)
+     (Better Auth, /api/auth) │                               └► Yahoo research adapter (off; no public rights)
+                              ▼
+                    domain logic (src/domain): portfolio accounting, Dip Radar rules,
+                    Buy Plans, What-If, X-Ray, similarity, CSV import (decimal-safe, tested)
+                              │
+                         Cloudflare D1 (SQLite) · scheduled alert job (cron, every 30 min)
 ```
 
-Then open http://localhost:8000. Tests: `node tests/calc.test.js`.
-
-## Layout
+- **One Cloudflare Worker** serves everything at markets.marcantoniopovolo.com: the web app as static assets, `/api/auth/*` for accounts, `/api/v1/*` for the Markets API, and a cron trigger that evaluates Dip Radar rules.
+- **The web app only uses the public API contract** (`/api/v1`), the same one documented for other developers.
+- **Domain logic is pure TypeScript** with no framework code, so a future native client or server can reuse it. Money and quantities are decimal strings handled with big.js, never floats.
+- **Providers are interchangeable.** Each declares separate rights (internal processing, public display, API redistribution, derived analytics, caching, news), published at `/api/v1/coverage`. Public responses only come from a provider whose rights allow it; if a provider fails, the API returns `502` and never substitutes other data.
 
 | Path | What it is |
 |---|---|
-| `app/index.html`, `app/style.css` | The app's page and styles (light and dark) |
-| `app/app.js` | Screens, data fetching, caching, request limits, the setup guide |
-| `app/calc.js` | Pure maths and data parsing with no browser code, so it can be tested in Node |
-| `app/sw.js`, `app/manifest.webmanifest`, `app/icons/` | What makes it installable and work offline |
-| `tests/calc.test.js` | Tests for `calc.js` |
-| `python-app/` | The original local version (Python and SQLite). Run with `cd python-app && python3 portfolio.py`; test with `python3 -m unittest -v` |
-| `site/` | The website at markets.marcantoniopovolo.com: the coming-soon page (`index.html`, `style.css`), icons and favicons. `about/` and `_redirects` send the old project page to [marcantoniopovolo.com/projects/markets.html](https://marcantoniopovolo.com/projects/markets) |
-| `worker.js` | The API: anything under `/api/` (for now `/api/status`). Everything else is served from `site/` |
-| `wrangler.jsonc` | Cloudflare settings: `site/` plus `worker.js` at markets.marcantoniopovolo.com |
-| `LICENSE` | MIT: free to use, change and share |
-| `AGENTS.md` | Rules for AI coding tools working in this repo |
+| `src/domain/` | Shared, tested calculations: portfolio, performance (TWR, XIRR), dips, plans, What-If, exposure/X-Ray, similarity, CSV import, market sessions |
+| `src/server/` | The Markets API: routes (`routes/public.ts`, `routes/private.ts`), market service, provider adapters, auth, alert job, demo seed |
+| `src/web/` | The React app: shell (sidebar on desktop, bottom navigation on phones), pages, accessible charts |
+| `src/worker.ts` | Worker entry: auth, API, cron |
+| `migrations/` | D1 schema (auth tables generated by Better Auth's own tool; Markets tables) |
+| `tests/` | Domain tests and API tests against the real migrations (node:sqlite shaped like D1) |
+| `docs/` | Methodology, feature inventory, deployment, exported OpenAPI spec |
+| `legacy/` | The earlier browser-only app and the original Python app, kept for reference |
 
-The app in `app/` isn't online yet; only `site/` is published.
+## Run it locally
 
-## Publishing
-
-Pushing to GitHub saves the code. To put `site/` online at markets.marcantoniopovolo.com, run this in the repo folder:
+Needs Node 22+.
 
 ```
-npx wrangler deploy
+npm install
+cp .dev.vars.example .dev.vars        # then set BETTER_AUTH_SECRET (openssl rand -base64 32)
+npm run db:migrate:local
+npm run dev                            # http://localhost:5173
+npm test                               # domain + API tests
+npm run typecheck
 ```
 
-## API
+## The Markets API
 
-The app and its API share one address. The website is served from `site/`; requests under `/api/` go to `worker.js`. While the app is coming soon there is one endpoint:
+- Interactive reference: `/api/v1/docs` · OpenAPI 3.1: `/api/v1/openapi.json` (also in [docs/openapi.json](docs/openapi.json))
+- Public market-data endpoints are **keyless**: 120 requests a minute per IP (600 signed in), batch up to 50, history up to 1,830 days per request, `429` with `Retry-After` past the limit, CORS open for public GETs.
+- Private endpoints (watchlists, portfolios, alerts, plans, journal, calendar, connections) need a signed-in session and only return the caller's own data.
 
 ```
-curl https://markets.marcantoniopovolo.com/api/status
+curl https://markets.marcantoniopovolo.com/api/v1/assets/xnas.aapl/quote
+curl "https://markets.marcantoniopovolo.com/api/v1/screeners/dips?windowDays=30&minDropPct=5"
 ```
 
-## Open source
+## Deploying
 
-This project is open source under the [MIT License](LICENSE). Fork it, change it and make your own version; just keep the license notice. Issues and pull requests are welcome.
+See [docs/DEPLOY.md](docs/DEPLOY.md). In short: `npm run db:migrate:remote`, set `BETTER_AUTH_SECRET` with `wrangler secret put`, then `npm run deploy`.
+
+## Not investment advice
+
+Markets is a research and tracking tool. Plans are notes, not orders. It never places trades, moves money or recommends what to buy. Similar is not suitable, and a lower price alone doesn't mean better value.

@@ -1,0 +1,6 @@
+# Copy to .dev.vars for local development. Never commit .dev.vars.
+BETTER_AUTH_SECRET=generate-with-openssl-rand-base64-32
+BETTER_AUTH_URL=http://localhost:5173
+ENVIRONMENT=development
+# YAHOO_RESEARCH=enabled   # isolated research adapter; never used for public display or the API
+# EMAIL_PROVIDER=          # not configured yet: verification and password-reset emails are unavailable

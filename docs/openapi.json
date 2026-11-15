@@ -1,0 +1,6744 @@
+{
+ "openapi": "3.1.0",
+ "info": {
+  "title": "Markets API",
+  "version": "1.0.0-beta.1",
+  "description": "The investing API behind Markets by MP. Public market-data endpoints are keyless within the documented limits (120 requests a minute per IP, 600 when signed in). Private endpoints need a signed-in session and only ever return your own data. **All market data is currently generated demo data;** no licensed production provider is connected yet. Every response says where its data came from and when.",
+  "license": {
+   "name": "MIT (code)",
+   "url": "https://github.com/povolom/Markets-by-MP/blob/main/LICENSE"
+  }
+ },
+ "servers": [
+  {
+   "url": "https://markets.marcantoniopovolo.com"
+  }
+ ],
+ "tags": [
+  {
+   "name": "Market data",
+   "description": "Keyless public endpoints."
+  },
+  {
+   "name": "Service"
+  },
+  {
+   "name": "Account"
+  },
+  {
+   "name": "Watchlists"
+  },
+  {
+   "name": "Portfolios"
+  },
+  {
+   "name": "Transactions"
+  },
+  {
+   "name": "Alerts"
+  },
+  {
+   "name": "Dip Radar"
+  },
+  {
+   "name": "Plans"
+  },
+  {
+   "name": "Journal"
+  },
+  {
+   "name": "Calendar"
+  },
+  {
+   "name": "Connections"
+  },
+  {
+   "name": "Community"
+  }
+ ],
+ "components": {
+  "securitySchemes": {
+   "session": {
+    "type": "apiKey",
+    "in": "cookie",
+    "name": "better-auth.session_token",
+    "description": "Session cookie set by signing in on markets.marcantoniopovolo.com. Private endpoints are same-origin only; third-party access to private data will use explicit, scoped consent (not yet available)."
+   }
+  },
+  "schemas": {
+   "Error": {
+    "type": "object",
+    "properties": {
+     "error": {
+      "type": "object",
+      "properties": {
+       "code": {
+        "type": "string",
+        "example": "not_found"
+       },
+       "message": {
+        "type": "string"
+       },
+       "details": {},
+       "requestId": {
+        "type": [
+         "string",
+         "null"
+        ]
+       }
+      },
+      "required": [
+       "code",
+       "message",
+       "requestId"
+      ]
+     }
+    },
+    "required": [
+     "error"
+    ]
+   },
+   "Instrument": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "example": "xnas.aapl",
+      "description": "Stable Markets instrument ID."
+     },
+     "symbol": {
+      "type": "string",
+      "example": "AAPL"
+     },
+     "name": {
+      "type": "string"
+     },
+     "assetClass": {
+      "type": "string",
+      "enum": [
+       "stock",
+       "etf",
+       "crypto",
+       "index",
+       "fx",
+       "mutual_fund"
+      ]
+     },
+     "exchange": {
+      "type": "string",
+      "example": "XNAS"
+     },
+     "exchangeName": {
+      "type": "string"
+     },
+     "currency": {
+      "type": "string",
+      "example": "USD"
+     },
+     "timezone": {
+      "type": "string",
+      "example": "America/New_York"
+     },
+     "country": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "sector": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "industry": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "tradable": {
+      "type": "boolean",
+      "description": "False for indexes and FX pairs, which are not directly purchasable here."
+     },
+     "description": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "symbol",
+     "name",
+     "assetClass",
+     "exchange",
+     "exchangeName",
+     "currency",
+     "timezone",
+     "country",
+     "sector",
+     "industry",
+     "tradable",
+     "description"
+    ]
+   },
+   "Pagination": {
+    "type": "object",
+    "properties": {
+     "limit": {
+      "type": "number"
+     },
+     "nextCursor": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "total": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "limit",
+     "nextCursor",
+     "total"
+    ]
+   },
+   "Quote": {
+    "type": "object",
+    "properties": {
+     "instrumentId": {
+      "type": "string"
+     },
+     "price": {
+      "type": "string",
+      "pattern": "^-?\\d+(\\.\\d+)?$",
+      "description": "Last price. Decimal string.",
+      "example": "182.4100"
+     },
+     "previousClose": {
+      "type": "string",
+      "pattern": "^-?\\d+(\\.\\d+)?$",
+      "description": "Previous session close. Decimal string.",
+      "example": "182.4100"
+     },
+     "change": {
+      "type": "string",
+      "pattern": "^-?\\d+(\\.\\d+)?$",
+      "description": "Signed change from the previous close. Decimal string.",
+      "example": "182.4100"
+     },
+     "changePct": {
+      "type": "string",
+      "pattern": "^-?\\d+(\\.\\d+)?$",
+      "description": "Signed percent change. Decimal string.",
+      "example": "182.4100"
+     },
+     "dayHigh": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "pattern": "^-?\\d+(\\.\\d+)?$",
+      "description": "Session high so far. Decimal string.",
+      "example": "182.4100"
+     },
+     "dayLow": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "pattern": "^-?\\d+(\\.\\d+)?$",
+      "description": "Session low so far. Decimal string.",
+      "example": "182.4100"
+     },
+     "currency": {
+      "type": "string"
+     },
+     "session": {
+      "type": "string",
+      "enum": [
+       "pre",
+       "open",
+       "post",
+       "closed",
+       "always_open"
+      ]
+     },
+     "meta": {
+      "$ref": "#/components/schemas/DataMeta"
+     }
+    },
+    "required": [
+     "instrumentId",
+     "price",
+     "previousClose",
+     "change",
+     "changePct",
+     "dayHigh",
+     "dayLow",
+     "currency",
+     "session",
+     "meta"
+    ]
+   },
+   "DataMeta": {
+    "type": "object",
+    "properties": {
+     "provider": {
+      "type": "string",
+      "example": "demo"
+     },
+     "provenance": {
+      "type": "string",
+      "enum": [
+       "demo",
+       "production",
+       "research"
+      ]
+     },
+     "observedAt": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "description": "When the market value was observed (ISO 8601)."
+     },
+     "retrievedAt": {
+      "type": "string",
+      "description": "When Markets produced this response (ISO 8601)."
+     },
+     "delaySeconds": {
+      "type": [
+       "number",
+       "null"
+      ],
+      "description": "Known delay; null when unknown."
+     },
+     "notes": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     }
+    },
+    "required": [
+     "provider",
+     "provenance",
+     "observedAt",
+     "retrievedAt",
+     "delaySeconds"
+    ]
+   },
+   "Bar": {
+    "type": "object",
+    "properties": {
+     "date": {
+      "type": "string"
+     },
+     "open": {
+      "type": "string",
+      "pattern": "^-?\\d+(\\.\\d+)?$",
+      "description": " Decimal string.",
+      "example": "182.4100"
+     },
+     "high": {
+      "type": "string",
+      "pattern": "^-?\\d+(\\.\\d+)?$",
+      "description": " Decimal string.",
+      "example": "182.4100"
+     },
+     "low": {
+      "type": "string",
+      "pattern": "^-?\\d+(\\.\\d+)?$",
+      "description": " Decimal string.",
+      "example": "182.4100"
+     },
+     "close": {
+      "type": "string",
+      "pattern": "^-?\\d+(\\.\\d+)?$",
+      "description": "Raw close. Decimal string.",
+      "example": "182.4100"
+     },
+     "adjClose": {
+      "type": "string",
+      "pattern": "^-?\\d+(\\.\\d+)?$",
+      "description": "Close adjusted for splits and distributions. Decimal string.",
+      "example": "182.4100"
+     },
+     "volume": {
+      "type": [
+       "number",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "date",
+     "open",
+     "high",
+     "low",
+     "close",
+     "adjClose",
+     "volume"
+    ]
+   },
+   "Statistics": {
+    "type": "object",
+    "properties": {
+     "instrumentId": {
+      "type": "string"
+     },
+     "fiftyTwoWeekHigh": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "pattern": "^-?\\d+(\\.\\d+)?$",
+      "description": " Decimal string.",
+      "example": "182.4100"
+     },
+     "fiftyTwoWeekLow": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "pattern": "^-?\\d+(\\.\\d+)?$",
+      "description": " Decimal string.",
+      "example": "182.4100"
+     },
+     "volatility1y": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "pattern": "^-?\\d+(\\.\\d+)?$",
+      "description": "Annualized, percent. Decimal string.",
+      "example": "182.4100"
+     },
+     "maxDrawdown1y": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "pattern": "^-?\\d+(\\.\\d+)?$",
+      "description": "Percent, negative. Decimal string.",
+      "example": "182.4100"
+     },
+     "marketCap": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "pattern": "^-?\\d+(\\.\\d+)?$",
+      "description": "Equities only. Decimal string.",
+      "example": "182.4100"
+     },
+     "peRatio": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "pattern": "^-?\\d+(\\.\\d+)?$",
+      "description": "Equities only. Decimal string.",
+      "example": "182.4100"
+     },
+     "dividendYield": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "pattern": "^-?\\d+(\\.\\d+)?$",
+      "description": "Trailing, percent. Decimal string.",
+      "example": "182.4100"
+     },
+     "expenseRatio": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "pattern": "^-?\\d+(\\.\\d+)?$",
+      "description": "Funds only, percent. Decimal string.",
+      "example": "182.4100"
+     },
+     "beta": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "pattern": "^-?\\d+(\\.\\d+)?$",
+      "description": "Equities only. Decimal string.",
+      "example": "182.4100"
+     },
+     "meta": {
+      "$ref": "#/components/schemas/DataMeta"
+     }
+    },
+    "required": [
+     "instrumentId",
+     "fiftyTwoWeekHigh",
+     "fiftyTwoWeekLow",
+     "volatility1y",
+     "maxDrawdown1y",
+     "marketCap",
+     "peRatio",
+     "dividendYield",
+     "expenseRatio",
+     "beta",
+     "meta"
+    ]
+   },
+   "Financials": {
+    "type": [
+     "object",
+     "null"
+    ],
+    "properties": {
+     "instrumentId": {
+      "type": "string"
+     },
+     "periods": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "currency": {
+      "type": "string"
+     },
+     "income": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "label": {
+         "type": "string"
+        },
+        "values": {
+         "type": "array",
+         "items": {
+          "type": [
+           "string",
+           "null"
+          ]
+         }
+        }
+       },
+       "required": [
+        "label",
+        "values"
+       ]
+      }
+     },
+     "balance": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "label": {
+         "type": "string"
+        },
+        "values": {
+         "type": "array",
+         "items": {
+          "type": [
+           "string",
+           "null"
+          ]
+         }
+        }
+       },
+       "required": [
+        "label",
+        "values"
+       ]
+      }
+     },
+     "cashflow": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "label": {
+         "type": "string"
+        },
+        "values": {
+         "type": "array",
+         "items": {
+          "type": [
+           "string",
+           "null"
+          ]
+         }
+        }
+       },
+       "required": [
+        "label",
+        "values"
+       ]
+      }
+     },
+     "meta": {
+      "$ref": "#/components/schemas/DataMeta"
+     }
+    },
+    "required": [
+     "instrumentId",
+     "periods",
+     "currency",
+     "income",
+     "balance",
+     "cashflow",
+     "meta"
+    ]
+   },
+   "Dividend": {
+    "type": "object",
+    "properties": {
+     "exDate": {
+      "type": "string"
+     },
+     "payDate": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "amount": {
+      "type": "string",
+      "pattern": "^-?\\d+(\\.\\d+)?$",
+      "description": "Per unit. Decimal string.",
+      "example": "182.4100"
+     },
+     "currency": {
+      "type": "string"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "paid",
+       "declared",
+       "projected"
+      ],
+      "description": "\"projected\" amounts and dates are estimates, not declarations."
+     }
+    },
+    "required": [
+     "exDate",
+     "payDate",
+     "amount",
+     "currency",
+     "status"
+    ]
+   },
+   "Event": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "instrumentId": {
+      "type": "string"
+     },
+     "type": {
+      "type": "string",
+      "enum": [
+       "earnings",
+       "dividend_ex",
+       "dividend_pay",
+       "split",
+       "meeting"
+      ]
+     },
+     "date": {
+      "type": "string"
+     },
+     "confirmed": {
+      "type": "boolean",
+      "description": "False means an estimated date."
+     },
+     "title": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "instrumentId",
+     "type",
+     "date",
+     "confirmed",
+     "title"
+    ]
+   },
+   "NewsItem": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "title": {
+      "type": "string"
+     },
+     "publisher": {
+      "type": "string"
+     },
+     "publishedAt": {
+      "type": "string"
+     },
+     "url": {
+      "type": "string"
+     },
+     "excerpt": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "instrumentIds": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "kind": {
+      "type": "string",
+      "enum": [
+       "reporting",
+       "opinion",
+       "press_release",
+       "unknown"
+      ]
+     },
+     "provenance": {
+      "type": "string",
+      "enum": [
+       "demo",
+       "production",
+       "research"
+      ]
+     }
+    },
+    "required": [
+     "id",
+     "title",
+     "publisher",
+     "publishedAt",
+     "url",
+     "excerpt",
+     "instrumentIds",
+     "kind",
+     "provenance"
+    ]
+   },
+   "Related": {
+    "type": "object",
+    "properties": {
+     "similar": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "instrumentId": {
+         "type": "string"
+        },
+        "score": {
+         "type": "number"
+        },
+        "reasons": {
+         "type": "array",
+         "items": {
+          "type": "string"
+         }
+        },
+        "correlation1y": {
+         "type": [
+          "number",
+          "null"
+         ]
+        }
+       },
+       "required": [
+        "instrumentId",
+        "score",
+        "reasons",
+        "correlation1y"
+       ]
+      }
+     },
+     "different": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "instrumentId": {
+         "type": "string"
+        },
+        "score": {
+         "type": "number"
+        },
+        "reasons": {
+         "type": "array",
+         "items": {
+          "type": "string"
+         }
+        },
+        "correlation1y": {
+         "type": [
+          "number",
+          "null"
+         ]
+        }
+       },
+       "required": [
+        "instrumentId",
+        "score",
+        "reasons",
+        "correlation1y"
+       ]
+      }
+     },
+     "method": {
+      "type": "string"
+     },
+     "disclaimer": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "similar",
+     "different",
+     "method",
+     "disclaimer"
+    ]
+   },
+   "DipSnapshot": {
+    "type": "object",
+    "properties": {
+     "instrumentId": {
+      "type": "string"
+     },
+     "instrument": {
+      "$ref": "#/components/schemas/Instrument"
+     },
+     "quote": {
+      "$ref": "#/components/schemas/Quote"
+     },
+     "dropPct": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "pattern": "^-?\\d+(\\.\\d+)?$",
+      "description": "Signed percent from the reference high. Decimal string.",
+      "example": "182.4100"
+     },
+     "reference": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "pattern": "^-?\\d+(\\.\\d+)?$",
+      "description": "Reference high on today's price basis. Decimal string.",
+      "example": "182.4100"
+     },
+     "referenceDate": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "windowDays": {
+      "type": "number"
+     },
+     "basis": {
+      "type": "string",
+      "enum": [
+       "close",
+       "intraday"
+      ]
+     }
+    },
+    "required": [
+     "instrumentId",
+     "instrument",
+     "quote",
+     "dropPct",
+     "reference",
+     "referenceDate",
+     "windowDays",
+     "basis"
+    ]
+   }
+  },
+  "parameters": {}
+ },
+ "paths": {
+  "/api/v1/status": {
+   "get": {
+    "tags": [
+     "Service"
+    ],
+    "summary": "Service status",
+    "responses": {
+     "200": {
+      "description": "Status",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limited. See the Retry-After header.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "502": {
+      "description": "The upstream provider failed. No substitute data is returned.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/changelog": {
+   "get": {
+    "tags": [
+     "Service"
+    ],
+    "summary": "API changelog",
+    "responses": {
+     "200": {
+      "description": "Changelog",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limited. See the Retry-After header.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "502": {
+      "description": "The upstream provider failed. No substitute data is returned.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/coverage": {
+   "get": {
+    "tags": [
+     "Service"
+    ],
+    "summary": "Supported assets, exchanges, fields, history and data rights",
+    "responses": {
+     "200": {
+      "description": "Coverage",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limited. See the Retry-After header.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "502": {
+      "description": "The upstream provider failed. No substitute data is returned.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/assets/search": {
+   "get": {
+    "tags": [
+     "Market data"
+    ],
+    "summary": "Search instruments",
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "maxLength": 64,
+       "default": "",
+       "example": "apple"
+      },
+      "required": false,
+      "name": "q",
+      "in": "query"
+     },
+     {
+      "schema": {
+       "type": "string",
+       "enum": [
+        "stock",
+        "etf",
+        "crypto",
+        "index",
+        "fx",
+        "mutual_fund"
+       ]
+      },
+      "required": false,
+      "name": "assetClass",
+      "in": "query"
+     },
+     {
+      "schema": {
+       "type": "integer",
+       "minimum": 1,
+       "maximum": 50,
+       "default": 20
+      },
+      "required": false,
+      "name": "limit",
+      "in": "query"
+     },
+     {
+      "schema": {
+       "type": "string"
+      },
+      "required": false,
+      "name": "cursor",
+      "in": "query"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Matching instruments",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "data": {
+           "type": "array",
+           "items": {
+            "$ref": "#/components/schemas/Instrument"
+           }
+          },
+          "pagination": {
+           "$ref": "#/components/schemas/Pagination"
+          }
+         },
+         "required": [
+          "data",
+          "pagination"
+         ]
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limited. See the Retry-After header.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "502": {
+      "description": "The upstream provider failed. No substitute data is returned.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/assets/{id}": {
+   "get": {
+    "tags": [
+     "Market data"
+    ],
+    "summary": "Instrument details",
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64,
+       "example": "xnas.aapl"
+      },
+      "required": true,
+      "name": "id",
+      "in": "path"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Instrument",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "data": {
+           "$ref": "#/components/schemas/Instrument"
+          }
+         },
+         "required": [
+          "data"
+         ]
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limited. See the Retry-After header.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "502": {
+      "description": "The upstream provider failed. No substitute data is returned.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/assets/{id}/quote": {
+   "get": {
+    "tags": [
+     "Market data"
+    ],
+    "summary": "Latest quote",
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64,
+       "example": "xnas.aapl"
+      },
+      "required": true,
+      "name": "id",
+      "in": "path"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Quote",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "data": {
+           "$ref": "#/components/schemas/Quote"
+          }
+         },
+         "required": [
+          "data"
+         ]
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limited. See the Retry-After header.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "502": {
+      "description": "The upstream provider failed. No substitute data is returned.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/quotes": {
+   "get": {
+    "tags": [
+     "Market data"
+    ],
+    "summary": "Quotes for up to 50 instruments",
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "example": "xnas.aapl,xtse.xeqt"
+      },
+      "required": true,
+      "name": "ids",
+      "in": "query"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Quotes",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "data": {
+           "type": "array",
+           "items": {
+            "$ref": "#/components/schemas/Quote"
+           }
+          }
+         },
+         "required": [
+          "data"
+         ]
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limited. See the Retry-After header.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "502": {
+      "description": "The upstream provider failed. No substitute data is returned.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/assets/{id}/history": {
+   "get": {
+    "tags": [
+     "Market data"
+    ],
+    "summary": "Daily price history (bounded)",
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64,
+       "example": "xnas.aapl"
+      },
+      "required": true,
+      "name": "id",
+      "in": "path"
+     },
+     {
+      "schema": {
+       "type": "string",
+       "enum": [
+        "1M",
+        "3M",
+        "6M",
+        "YTD",
+        "1Y",
+        "5Y",
+        "MAX"
+       ],
+       "description": "1M, 3M, 6M, YTD, 1Y, 5Y or MAX (five years)."
+      },
+      "required": false,
+      "description": "1M, 3M, 6M, YTD, 1Y, 5Y or MAX (five years).",
+      "name": "range",
+      "in": "query"
+     },
+     {
+      "schema": {
+       "type": "string",
+       "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+      },
+      "required": false,
+      "name": "from",
+      "in": "query"
+     },
+     {
+      "schema": {
+       "type": "string",
+       "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+      },
+      "required": false,
+      "name": "to",
+      "in": "query"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Bars, oldest first",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "data": {
+           "type": "array",
+           "items": {
+            "$ref": "#/components/schemas/Bar"
+           }
+          },
+          "instrumentId": {
+           "type": "string"
+          },
+          "interval": {
+           "type": "string",
+           "enum": [
+            "1d"
+           ]
+          },
+          "currency": {
+           "type": "string"
+          },
+          "meta": {
+           "$ref": "#/components/schemas/DataMeta"
+          }
+         },
+         "required": [
+          "data",
+          "instrumentId",
+          "interval",
+          "currency",
+          "meta"
+         ]
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limited. See the Retry-After header.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "502": {
+      "description": "The upstream provider failed. No substitute data is returned.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/assets/{id}/statistics": {
+   "get": {
+    "tags": [
+     "Market data"
+    ],
+    "summary": "Statistics (fields depend on asset class)",
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64,
+       "example": "xnas.aapl"
+      },
+      "required": true,
+      "name": "id",
+      "in": "path"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Statistics",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "data": {
+           "$ref": "#/components/schemas/Statistics"
+          }
+         },
+         "required": [
+          "data"
+         ]
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limited. See the Retry-After header.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "502": {
+      "description": "The upstream provider failed. No substitute data is returned.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/assets/{id}/financials": {
+   "get": {
+    "tags": [
+     "Market data"
+    ],
+    "summary": "Financial statements (equities only)",
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64,
+       "example": "xnas.aapl"
+      },
+      "required": true,
+      "name": "id",
+      "in": "path"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Statements, or null when not applicable",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "data": {
+           "$ref": "#/components/schemas/Financials"
+          }
+         },
+         "required": [
+          "data"
+         ]
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limited. See the Retry-After header.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "502": {
+      "description": "The upstream provider failed. No substitute data is returned.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/assets/{id}/dividends": {
+   "get": {
+    "tags": [
+     "Market data"
+    ],
+    "summary": "Dividends paid, declared and projected",
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64,
+       "example": "xnas.aapl"
+      },
+      "required": true,
+      "name": "id",
+      "in": "path"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Dividends",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "data": {
+           "type": "array",
+           "items": {
+            "$ref": "#/components/schemas/Dividend"
+           }
+          }
+         },
+         "required": [
+          "data"
+         ]
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limited. See the Retry-After header.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "502": {
+      "description": "The upstream provider failed. No substitute data is returned.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/assets/{id}/events": {
+   "get": {
+    "tags": [
+     "Market data"
+    ],
+    "summary": "Earnings, dividend and split dates",
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64,
+       "example": "xnas.aapl"
+      },
+      "required": true,
+      "name": "id",
+      "in": "path"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Events",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "data": {
+           "type": "array",
+           "items": {
+            "$ref": "#/components/schemas/Event"
+           }
+          }
+         },
+         "required": [
+          "data"
+         ]
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limited. See the Retry-After header.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "502": {
+      "description": "The upstream provider failed. No substitute data is returned.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/assets/{id}/news": {
+   "get": {
+    "tags": [
+     "Market data"
+    ],
+    "summary": "News headlines that mention this instrument",
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64,
+       "example": "xnas.aapl"
+      },
+      "required": true,
+      "name": "id",
+      "in": "path"
+     },
+     {
+      "schema": {
+       "type": "integer",
+       "minimum": 1,
+       "maximum": 50,
+       "default": 10
+      },
+      "required": false,
+      "name": "limit",
+      "in": "query"
+     },
+     {
+      "schema": {
+       "type": "string"
+      },
+      "required": false,
+      "name": "cursor",
+      "in": "query"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "News",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "data": {
+           "type": "array",
+           "items": {
+            "$ref": "#/components/schemas/NewsItem"
+           }
+          },
+          "pagination": {
+           "$ref": "#/components/schemas/Pagination"
+          }
+         },
+         "required": [
+          "data",
+          "pagination"
+         ]
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limited. See the Retry-After header.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "502": {
+      "description": "The upstream provider failed. No substitute data is returned.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/assets/{id}/related": {
+   "get": {
+    "tags": [
+     "Market data"
+    ],
+    "summary": "Similar and different instruments, with reasons",
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64,
+       "example": "xnas.aapl"
+      },
+      "required": true,
+      "name": "id",
+      "in": "path"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Related instruments",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "data": {
+           "$ref": "#/components/schemas/Related"
+          }
+         },
+         "required": [
+          "data"
+         ]
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limited. See the Retry-After header.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "502": {
+      "description": "The upstream provider failed. No substitute data is returned.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/assets/{id}/composition": {
+   "get": {
+    "tags": [
+     "Market data"
+    ],
+    "summary": "Fund holdings with date and coverage (funds only)",
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64,
+       "example": "xnas.aapl"
+      },
+      "required": true,
+      "name": "id",
+      "in": "path"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Composition or null",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limited. See the Retry-After header.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "502": {
+      "description": "The upstream provider failed. No substitute data is returned.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/assets/{id}/dip": {
+   "get": {
+    "tags": [
+     "Market data"
+    ],
+    "summary": "Drop from a rolling high (same definition as Dip Radar)",
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64,
+       "example": "xnas.aapl"
+      },
+      "required": true,
+      "name": "id",
+      "in": "path"
+     },
+     {
+      "schema": {
+       "type": "integer",
+       "minimum": 5,
+       "maximum": 365,
+       "default": 30
+      },
+      "required": false,
+      "name": "windowDays",
+      "in": "query"
+     },
+     {
+      "schema": {
+       "type": "string",
+       "enum": [
+        "close",
+        "intraday"
+       ],
+       "default": "close"
+      },
+      "required": false,
+      "name": "basis",
+      "in": "query"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Snapshot",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "data": {
+           "$ref": "#/components/schemas/DipSnapshot"
+          }
+         },
+         "required": [
+          "data"
+         ]
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limited. See the Retry-After header.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "502": {
+      "description": "The upstream provider failed. No substitute data is returned.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/markets/overview": {
+   "get": {
+    "tags": [
+     "Market data"
+    ],
+    "summary": "Benchmarks and the day's largest moves",
+    "responses": {
+     "200": {
+      "description": "Overview",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limited. See the Retry-After header.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "502": {
+      "description": "The upstream provider failed. No substitute data is returned.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/news": {
+   "get": {
+    "tags": [
+     "Market data"
+    ],
+    "summary": "Market-wide headlines",
+    "parameters": [
+     {
+      "schema": {
+       "type": "integer",
+       "minimum": 1,
+       "maximum": 50,
+       "default": 10
+      },
+      "required": false,
+      "name": "limit",
+      "in": "query"
+     },
+     {
+      "schema": {
+       "type": "string"
+      },
+      "required": false,
+      "name": "cursor",
+      "in": "query"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "News",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "data": {
+           "type": "array",
+           "items": {
+            "$ref": "#/components/schemas/NewsItem"
+           }
+          },
+          "pagination": {
+           "$ref": "#/components/schemas/Pagination"
+          }
+         },
+         "required": [
+          "data",
+          "pagination"
+         ]
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limited. See the Retry-After header.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "502": {
+      "description": "The upstream provider failed. No substitute data is returned.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/screeners/dips": {
+   "get": {
+    "tags": [
+     "Market data"
+    ],
+    "summary": "Instruments below a recent high",
+    "description": "Sorted by the criterion you choose. A larger decline is not a better investment; this lists facts, not recommendations.",
+    "parameters": [
+     {
+      "schema": {
+       "type": "integer",
+       "minimum": 5,
+       "maximum": 365,
+       "default": 30
+      },
+      "required": false,
+      "name": "windowDays",
+      "in": "query"
+     },
+     {
+      "schema": {
+       "type": "string",
+       "enum": [
+        "close",
+        "intraday"
+       ],
+       "default": "close"
+      },
+      "required": false,
+      "name": "basis",
+      "in": "query"
+     },
+     {
+      "schema": {
+       "type": [
+        "number",
+        "null"
+       ],
+       "minimum": 0,
+       "maximum": 90,
+       "default": 5
+      },
+      "required": false,
+      "name": "minDropPct",
+      "in": "query"
+     },
+     {
+      "schema": {
+       "type": "string",
+       "enum": [
+        "stock",
+        "etf",
+        "crypto",
+        "mutual_fund"
+       ]
+      },
+      "required": false,
+      "name": "assetClass",
+      "in": "query"
+     },
+     {
+      "schema": {
+       "type": "string",
+       "enum": [
+        "drop",
+        "daily",
+        "symbol"
+       ],
+       "default": "drop"
+      },
+      "required": false,
+      "name": "sort",
+      "in": "query"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Matches",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "data": {
+           "type": "array",
+           "items": {
+            "$ref": "#/components/schemas/DipSnapshot"
+           }
+          },
+          "definition": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "data",
+          "definition"
+         ]
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limited. See the Retry-After header.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "502": {
+      "description": "The upstream provider failed. No substitute data is returned.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/fx": {
+   "get": {
+    "tags": [
+     "Market data"
+    ],
+    "summary": "Exchange rate (latest or on a date)",
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 3,
+       "maxLength": 3
+      },
+      "required": true,
+      "name": "from",
+      "in": "query"
+     },
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 3,
+       "maxLength": 3
+      },
+      "required": true,
+      "name": "to",
+      "in": "query"
+     },
+     {
+      "schema": {
+       "type": "string",
+       "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+      },
+      "required": false,
+      "name": "date",
+      "in": "query"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Rate",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limited. See the Retry-After header.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "502": {
+      "description": "The upstream provider failed. No substitute data is returned.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/me": {
+   "get": {
+    "tags": [
+     "Account"
+    ],
+    "summary": "Your profile and settings",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Your profile and settings",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   },
+   "patch": {
+    "tags": [
+     "Account"
+    ],
+    "summary": "Update your profile, onboarding answers and preferences",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "displayName": {
+          "type": "string",
+          "maxLength": 60
+         },
+         "baseCurrency": {
+          "type": "string",
+          "enum": [
+           "CAD",
+           "USD"
+          ]
+         },
+         "interests": {
+          "type": "array",
+          "items": {
+           "type": "string",
+           "maxLength": 32
+          },
+          "maxItems": 20
+         },
+         "preferences": {
+          "type": "object",
+          "additionalProperties": {}
+         },
+         "onboarded": {
+          "type": "boolean"
+         }
+        }
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Update your profile, onboarding answers and preferences",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "Account"
+    ],
+    "summary": "Delete your account and all your data",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "confirm": {
+          "type": "string",
+          "enum": [
+           "DELETE"
+          ]
+         }
+        },
+        "required": [
+         "confirm"
+        ]
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Delete your account and all your data",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/me/export": {
+   "get": {
+    "tags": [
+     "Account"
+    ],
+    "summary": "Download all your data as JSON",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Download all your data as JSON",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/demo/seed": {
+   "post": {
+    "tags": [
+     "Account"
+    ],
+    "summary": "Fill a guest workspace with labelled demo data (guests only)",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Fill a guest workspace with labelled demo data (guests only)",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/watchlists": {
+   "get": {
+    "tags": [
+     "Watchlists"
+    ],
+    "summary": "Your watchlists with quotes and 30-day sparklines",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Your watchlists with quotes and 30-day sparklines",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "Watchlists"
+    ],
+    "summary": "Create a watchlist",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+         },
+         "instrumentIds": {
+          "type": "array",
+          "items": {
+           "type": "string",
+           "minLength": 1,
+           "maxLength": 64
+          },
+          "maxItems": 50
+         }
+        },
+        "required": [
+         "name"
+        ]
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Create a watchlist",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/watchlists/{id}": {
+   "patch": {
+    "tags": [
+     "Watchlists"
+    ],
+    "summary": "Rename a watchlist",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64
+      },
+      "required": true,
+      "name": "id",
+      "in": "path"
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+         }
+        },
+        "required": [
+         "name"
+        ]
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Rename a watchlist",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "Watchlists"
+    ],
+    "summary": "Delete a watchlist",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64
+      },
+      "required": true,
+      "name": "id",
+      "in": "path"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Delete a watchlist",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/watchlists/reorder": {
+   "post": {
+    "tags": [
+     "Watchlists"
+    ],
+    "summary": "Set the order of your watchlists",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "ids": {
+          "type": "array",
+          "items": {
+           "type": "string"
+          },
+          "maxItems": 50
+         }
+        },
+        "required": [
+         "ids"
+        ]
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Set the order of your watchlists",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/watchlists/{id}/items": {
+   "post": {
+    "tags": [
+     "Watchlists"
+    ],
+    "summary": "Add an instrument",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64
+      },
+      "required": true,
+      "name": "id",
+      "in": "path"
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "instrumentId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+         }
+        },
+        "required": [
+         "instrumentId"
+        ]
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Add an instrument",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/watchlists/{id}/items/{instrumentId}": {
+   "delete": {
+    "tags": [
+     "Watchlists"
+    ],
+    "summary": "Remove an instrument",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "parameters": [
+     {
+      "schema": {
+       "type": "string"
+      },
+      "required": true,
+      "name": "id",
+      "in": "path"
+     },
+     {
+      "schema": {
+       "type": "string"
+      },
+      "required": true,
+      "name": "instrumentId",
+      "in": "path"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Remove an instrument",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/portfolios": {
+   "get": {
+    "tags": [
+     "Portfolios"
+    ],
+    "summary": "Your portfolios",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Your portfolios",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "Portfolios"
+    ],
+    "summary": "Create a portfolio",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+         }
+        },
+        "required": [
+         "name"
+        ]
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Create a portfolio",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/portfolios/{id}": {
+   "patch": {
+    "tags": [
+     "Portfolios"
+    ],
+    "summary": "Rename a portfolio",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64
+      },
+      "required": true,
+      "name": "id",
+      "in": "path"
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+         }
+        },
+        "required": [
+         "name"
+        ]
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Rename a portfolio",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "Portfolios"
+    ],
+    "summary": "Delete a portfolio and its transactions",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64
+      },
+      "required": true,
+      "name": "id",
+      "in": "path"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Delete a portfolio and its transactions",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   },
+   "get": {
+    "tags": [
+     "Portfolios"
+    ],
+    "summary": "Holdings, cash, income and gains",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64
+      },
+      "required": true,
+      "name": "id",
+      "in": "path"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Holdings, cash, income and gains",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/portfolios/{id}/performance": {
+   "get": {
+    "tags": [
+     "Portfolios"
+    ],
+    "summary": "Time- and money-weighted returns, with an optional benchmark",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64
+      },
+      "required": true,
+      "name": "id",
+      "in": "path"
+     },
+     {
+      "schema": {
+       "type": "string"
+      },
+      "required": false,
+      "name": "benchmark",
+      "in": "query"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Time- and money-weighted returns, with an optional benchmark",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/portfolios/{id}/xray": {
+   "get": {
+    "tags": [
+     "Portfolios"
+    ],
+    "summary": "Portfolio X-Ray: direct and look-through exposure",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64
+      },
+      "required": true,
+      "name": "id",
+      "in": "path"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Portfolio X-Ray: direct and look-through exposure",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/portfolios/{id}/what-if": {
+   "post": {
+    "tags": [
+     "Portfolios"
+    ],
+    "summary": "Simulate a trade or contribution (nothing is recorded)",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64
+      },
+      "required": true,
+      "name": "id",
+      "in": "path"
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "type": {
+          "type": "string",
+          "enum": [
+           "buy",
+           "sell",
+           "contribute"
+          ]
+         },
+         "instrumentId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+         },
+         "quantity": {
+          "type": "string"
+         },
+         "amount": {
+          "type": "string"
+         },
+         "price": {
+          "type": "string"
+         },
+         "fxToBase": {
+          "type": "string"
+         },
+         "fee": {
+          "type": "string",
+          "default": "0"
+         },
+         "funding": {
+          "type": "string",
+          "enum": [
+           "cash",
+           "new_money"
+          ],
+          "default": "cash"
+         }
+        },
+        "required": [
+         "type"
+        ]
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Simulate a trade or contribution (nothing is recorded)",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/portfolios/{id}/income": {
+   "get": {
+    "tags": [
+     "Portfolios"
+    ],
+    "summary": "Dividend income received and expected",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64
+      },
+      "required": true,
+      "name": "id",
+      "in": "path"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Dividend income received and expected",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/portfolios/{id}/transactions": {
+   "get": {
+    "tags": [
+     "Transactions"
+    ],
+    "summary": "List transactions",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64
+      },
+      "required": true,
+      "name": "id",
+      "in": "path"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "List transactions",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "Transactions"
+    ],
+    "summary": "Record a transaction (a record of something that happened, not an order)",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64
+      },
+      "required": true,
+      "name": "id",
+      "in": "path"
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "type": {
+          "type": "string",
+          "enum": [
+           "buy",
+           "sell",
+           "dividend",
+           "fee",
+           "deposit",
+           "withdrawal",
+           "split",
+           "interest"
+          ]
+         },
+         "instrumentId": {
+          "type": [
+           "string",
+           "null"
+          ],
+          "minLength": 1,
+          "maxLength": 64
+         },
+         "tradeDate": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+         },
+         "quantity": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "price": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "amount": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "currency": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 3
+         },
+         "fee": {
+          "type": "string",
+          "default": "0"
+         },
+         "note": {
+          "type": "string",
+          "maxLength": 500,
+          "default": ""
+         }
+        },
+        "required": [
+         "type",
+         "tradeDate"
+        ]
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Record a transaction (a record of something that happened, not an order)",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/portfolios/{id}/transactions/{txId}": {
+   "delete": {
+    "tags": [
+     "Transactions"
+    ],
+    "summary": "Delete a transaction",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "parameters": [
+     {
+      "schema": {
+       "type": "string"
+      },
+      "required": true,
+      "name": "id",
+      "in": "path"
+     },
+     {
+      "schema": {
+       "type": "string"
+      },
+      "required": true,
+      "name": "txId",
+      "in": "path"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Delete a transaction",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/portfolios/{id}/imports/preview": {
+   "post": {
+    "tags": [
+     "Transactions"
+    ],
+    "summary": "Preview a CSV import: mapping, row errors and duplicates (nothing saved)",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64
+      },
+      "required": true,
+      "name": "id",
+      "in": "path"
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "csv": {
+          "type": "string",
+          "maxLength": 2000000
+         },
+         "filename": {
+          "type": "string",
+          "maxLength": 200,
+          "default": ""
+         },
+         "hasHeader": {
+          "type": "boolean",
+          "default": true
+         },
+         "dateFormat": {
+          "type": "string",
+          "enum": [
+           "ymd",
+           "mdy",
+           "dmy"
+          ],
+          "default": "ymd"
+         },
+         "defaultCurrency": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 3
+         },
+         "mapping": {
+          "type": "object",
+          "additionalProperties": {
+           "type": "integer",
+           "minimum": 0
+          }
+         }
+        },
+        "required": [
+         "csv"
+        ]
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Preview a CSV import: mapping, row errors and duplicates (nothing saved)",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/portfolios/{id}/imports": {
+   "post": {
+    "tags": [
+     "Transactions"
+    ],
+    "summary": "Commit the valid rows of a CSV as one reversible batch",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64
+      },
+      "required": true,
+      "name": "id",
+      "in": "path"
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "csv": {
+          "type": "string",
+          "maxLength": 2000000
+         },
+         "filename": {
+          "type": "string",
+          "maxLength": 200,
+          "default": ""
+         },
+         "hasHeader": {
+          "type": "boolean",
+          "default": true
+         },
+         "dateFormat": {
+          "type": "string",
+          "enum": [
+           "ymd",
+           "mdy",
+           "dmy"
+          ],
+          "default": "ymd"
+         },
+         "defaultCurrency": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 3
+         },
+         "mapping": {
+          "type": "object",
+          "additionalProperties": {
+           "type": "integer",
+           "minimum": 0
+          }
+         }
+        },
+        "required": [
+         "csv"
+        ]
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Commit the valid rows of a CSV as one reversible batch",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/imports": {
+   "get": {
+    "tags": [
+     "Transactions"
+    ],
+    "summary": "Your import batches",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Your import batches",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/imports/{id}/revert": {
+   "post": {
+    "tags": [
+     "Transactions"
+    ],
+    "summary": "Undo an import batch",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64
+      },
+      "required": true,
+      "name": "id",
+      "in": "path"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Undo an import batch",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/alerts/rules": {
+   "get": {
+    "tags": [
+     "Alerts"
+    ],
+    "summary": "Your alert rules",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Your alert rules",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "Alerts"
+    ],
+    "summary": "Create a rule",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "name": {
+          "type": "string",
+          "maxLength": 80,
+          "default": ""
+         },
+         "scope": {
+          "type": "string",
+          "enum": [
+           "instrument",
+           "watchlist",
+           "holdings"
+          ]
+         },
+         "instrumentId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+         },
+         "watchlistId": {
+          "type": "string"
+         },
+         "portfolioId": {
+          "type": "string"
+         },
+         "kind": {
+          "type": "string",
+          "enum": [
+           "below_rolling_high",
+           "below_52w_high",
+           "target_price",
+           "below_avg_cost",
+           "daily_drop",
+           "weekly_drop"
+          ]
+         },
+         "threshold": {
+          "type": "string"
+         },
+         "windowDays": {
+          "type": "integer",
+          "minimum": 5,
+          "maximum": 365,
+          "default": 30
+         },
+         "basis": {
+          "type": "string",
+          "enum": [
+           "close",
+           "intraday"
+          ],
+          "default": "close"
+         },
+         "resetBand": {
+          "type": "string",
+          "default": "2"
+         },
+         "cooldownHours": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 720,
+          "default": 24
+         },
+         "notify": {
+          "type": "boolean",
+          "default": true
+         },
+         "active": {
+          "type": "boolean",
+          "default": true
+         }
+        },
+        "required": [
+         "scope",
+         "kind",
+         "threshold"
+        ]
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Create a rule",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/alerts/rules/{id}": {
+   "patch": {
+    "tags": [
+     "Alerts"
+    ],
+    "summary": "Edit a rule (its alert state resets)",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64
+      },
+      "required": true,
+      "name": "id",
+      "in": "path"
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "name": {
+          "type": "string",
+          "maxLength": 80,
+          "default": ""
+         },
+         "scope": {
+          "type": "string",
+          "enum": [
+           "instrument",
+           "watchlist",
+           "holdings"
+          ]
+         },
+         "instrumentId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+         },
+         "watchlistId": {
+          "type": "string"
+         },
+         "portfolioId": {
+          "type": "string"
+         },
+         "kind": {
+          "type": "string",
+          "enum": [
+           "below_rolling_high",
+           "below_52w_high",
+           "target_price",
+           "below_avg_cost",
+           "daily_drop",
+           "weekly_drop"
+          ]
+         },
+         "threshold": {
+          "type": "string"
+         },
+         "windowDays": {
+          "type": "integer",
+          "minimum": 5,
+          "maximum": 365,
+          "default": 30
+         },
+         "basis": {
+          "type": "string",
+          "enum": [
+           "close",
+           "intraday"
+          ],
+          "default": "close"
+         },
+         "resetBand": {
+          "type": "string",
+          "default": "2"
+         },
+         "cooldownHours": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 720,
+          "default": 24
+         },
+         "notify": {
+          "type": "boolean",
+          "default": true
+         },
+         "active": {
+          "type": "boolean",
+          "default": true
+         }
+        },
+        "required": [
+         "scope",
+         "kind",
+         "threshold"
+        ]
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Edit a rule (its alert state resets)",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "Alerts"
+    ],
+    "summary": "Delete a rule",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64
+      },
+      "required": true,
+      "name": "id",
+      "in": "path"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Delete a rule",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/alerts/events": {
+   "get": {
+    "tags": [
+     "Alerts"
+    ],
+    "summary": "Triggered alerts (notifications)",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "enum": [
+        "true",
+        "false"
+       ]
+      },
+      "required": false,
+      "name": "unread",
+      "in": "query"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Triggered alerts (notifications)",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/alerts/events/read": {
+   "post": {
+    "tags": [
+     "Alerts"
+    ],
+    "summary": "Mark alerts as read",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "ids": {
+          "type": "array",
+          "items": {
+           "type": "string"
+          },
+          "maxItems": 200
+         }
+        }
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Mark alerts as read",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/alerts/evaluate": {
+   "post": {
+    "tags": [
+     "Alerts"
+    ],
+    "summary": "Check your rules now",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Check your rules now",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/dip-radar": {
+   "get": {
+    "tags": [
+     "Dip Radar"
+    ],
+    "summary": "Everything you follow, measured against your rules",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "parameters": [
+     {
+      "schema": {
+       "type": "integer",
+       "minimum": 5,
+       "maximum": 365,
+       "default": 30
+      },
+      "required": false,
+      "name": "windowDays",
+      "in": "query"
+     },
+     {
+      "schema": {
+       "type": "string",
+       "enum": [
+        "close",
+        "intraday"
+       ],
+       "default": "close"
+      },
+      "required": false,
+      "name": "basis",
+      "in": "query"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Everything you follow, measured against your rules",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/context/{id}": {
+   "get": {
+    "tags": [
+     "Dip Radar"
+    ],
+    "summary": "Dip Context: what accompanies a decline, with sources",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64
+      },
+      "required": true,
+      "name": "id",
+      "in": "path"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Dip Context: what accompanies a decline, with sources",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/plans": {
+   "get": {
+    "tags": [
+     "Plans"
+    ],
+    "summary": "Your Buy Plans with commitments and cash allocation",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Your Buy Plans with commitments and cash allocation",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "Plans"
+    ],
+    "summary": "Save a plan",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+         },
+         "mode": {
+          "type": "string",
+          "enum": [
+           "regular",
+           "dip",
+           "hybrid"
+          ]
+         },
+         "instrumentId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+         },
+         "portfolioId": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "schedule": {
+          "type": "string",
+          "enum": [
+           "weekly",
+           "biweekly",
+           "monthly"
+          ],
+          "default": "monthly"
+         },
+         "regularAmount": {
+          "type": "string",
+          "default": "0"
+         },
+         "levels": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "properties": {
+            "dropPct": {
+             "type": "string"
+            },
+            "amount": {
+             "type": "string"
+            }
+           },
+           "required": [
+            "dropPct",
+            "amount"
+           ]
+          },
+          "maxItems": 6,
+          "default": []
+         },
+         "maxTotal": {
+          "type": "string",
+          "default": "0"
+         },
+         "status": {
+          "type": "string",
+          "enum": [
+           "active",
+           "paused",
+           "archived"
+          ],
+          "default": "active"
+         },
+         "alertRuleId": {
+          "type": [
+           "string",
+           "null"
+          ]
+         }
+        },
+        "required": [
+         "name",
+         "mode",
+         "instrumentId"
+        ]
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Save a plan",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/plans/{id}": {
+   "patch": {
+    "tags": [
+     "Plans"
+    ],
+    "summary": "Edit a plan",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64
+      },
+      "required": true,
+      "name": "id",
+      "in": "path"
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+         },
+         "mode": {
+          "type": "string",
+          "enum": [
+           "regular",
+           "dip",
+           "hybrid"
+          ]
+         },
+         "instrumentId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+         },
+         "portfolioId": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "schedule": {
+          "type": "string",
+          "enum": [
+           "weekly",
+           "biweekly",
+           "monthly"
+          ],
+          "default": "monthly"
+         },
+         "regularAmount": {
+          "type": "string",
+          "default": "0"
+         },
+         "levels": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "properties": {
+            "dropPct": {
+             "type": "string"
+            },
+            "amount": {
+             "type": "string"
+            }
+           },
+           "required": [
+            "dropPct",
+            "amount"
+           ]
+          },
+          "maxItems": 6,
+          "default": []
+         },
+         "maxTotal": {
+          "type": "string",
+          "default": "0"
+         },
+         "status": {
+          "type": "string",
+          "enum": [
+           "active",
+           "paused",
+           "archived"
+          ],
+          "default": "active"
+         },
+         "alertRuleId": {
+          "type": [
+           "string",
+           "null"
+          ]
+         }
+        },
+        "required": [
+         "name",
+         "mode",
+         "instrumentId"
+        ]
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Edit a plan",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "Plans"
+    ],
+    "summary": "Delete a plan",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64
+      },
+      "required": true,
+      "name": "id",
+      "in": "path"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Delete a plan",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/journal": {
+   "get": {
+    "tags": [
+     "Journal"
+    ],
+    "summary": "Your journal entries",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Your journal entries",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "Journal"
+    ],
+    "summary": "Write an entry",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+         },
+         "instrumentId": {
+          "type": [
+           "string",
+           "null"
+          ],
+          "minLength": 1,
+          "maxLength": 64
+         },
+         "planId": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "transactionId": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "thesis": {
+          "type": "string",
+          "maxLength": 5000,
+          "default": ""
+         },
+         "sources": {
+          "type": "array",
+          "items": {
+           "type": "string",
+           "maxLength": 500
+          },
+          "maxItems": 20,
+          "default": []
+         },
+         "concerns": {
+          "type": "string",
+          "maxLength": 5000,
+          "default": ""
+         },
+         "horizon": {
+          "type": "string",
+          "maxLength": 60,
+          "default": ""
+         },
+         "reviewDate": {
+          "type": [
+           "string",
+           "null"
+          ],
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+         },
+         "reflection": {
+          "type": "string",
+          "maxLength": 5000,
+          "default": ""
+         }
+        },
+        "required": [
+         "title"
+        ]
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Write an entry",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/journal/{id}": {
+   "patch": {
+    "tags": [
+     "Journal"
+    ],
+    "summary": "Edit an entry",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64
+      },
+      "required": true,
+      "name": "id",
+      "in": "path"
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+         },
+         "instrumentId": {
+          "type": [
+           "string",
+           "null"
+          ],
+          "minLength": 1,
+          "maxLength": 64
+         },
+         "planId": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "transactionId": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "thesis": {
+          "type": "string",
+          "maxLength": 5000,
+          "default": ""
+         },
+         "sources": {
+          "type": "array",
+          "items": {
+           "type": "string",
+           "maxLength": 500
+          },
+          "maxItems": 20,
+          "default": []
+         },
+         "concerns": {
+          "type": "string",
+          "maxLength": 5000,
+          "default": ""
+         },
+         "horizon": {
+          "type": "string",
+          "maxLength": 60,
+          "default": ""
+         },
+         "reviewDate": {
+          "type": [
+           "string",
+           "null"
+          ],
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+         },
+         "reflection": {
+          "type": "string",
+          "maxLength": 5000,
+          "default": ""
+         }
+        },
+        "required": [
+         "title"
+        ]
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Edit an entry",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "Journal"
+    ],
+    "summary": "Delete an entry",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64
+      },
+      "required": true,
+      "name": "id",
+      "in": "path"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Delete an entry",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/calendar": {
+   "get": {
+    "tags": [
+     "Calendar"
+    ],
+    "summary": "Events for what you follow, plus your plan and journal review dates",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+      },
+      "required": false,
+      "name": "from",
+      "in": "query"
+     },
+     {
+      "schema": {
+       "type": "string",
+       "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+      },
+      "required": false,
+      "name": "to",
+      "in": "query"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Events for what you follow, plus your plan and journal review dates",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/brief": {
+   "get": {
+    "tags": [
+     "Calendar"
+    ],
+    "summary": "Your Market Brief",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Your Market Brief",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/connections": {
+   "get": {
+    "tags": [
+     "Connections"
+    ],
+    "summary": "Read-only account connections and their sync status",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Read-only account connections and their sync status",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/community/posts": {
+   "get": {
+    "tags": [
+     "Community"
+    ],
+    "summary": "Discussions (labelled examples during the beta)",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "parameters": [
+     {
+      "schema": {
+       "type": "string"
+      },
+      "required": false,
+      "name": "instrumentId",
+      "in": "query"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Discussions (labelled examples during the beta)",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/community/posts/{id}/bookmark": {
+   "post": {
+    "tags": [
+     "Community"
+    ],
+    "summary": "Bookmark or un-bookmark a post",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64
+      },
+      "required": true,
+      "name": "id",
+      "in": "path"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Bookmark or un-bookmark a post",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  }
+ },
+ "webhooks": {}
+}

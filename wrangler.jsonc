@@ -1,10 +1,26 @@
 // Cloudflare Worker settings for markets.marcantoniopovolo.com.
-// site/ is the website; worker.js answers /api/ (everything that isn't a file in site/ reaches the Worker).
+// The web app (built by Vite into dist/client) is served as static assets; /api/* runs the Worker
+// (src/worker.ts): accounts at /api/auth/*, the Markets API at /api/v1/*.
 {
+  "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "markets-by-mp",
-  "main": "worker.js",
-  "compatibility_date": "2026-10-03",
-  "assets": { "directory": "./site", "binding": "ASSETS" },
-  // Cloudflare creates the DNS record and HTTPS certificate for this subdomain on deploy.
-  "routes": [{ "pattern": "markets.marcantoniopovolo.com", "custom_domain": true }]
+  "main": "./src/worker.ts",
+  "compatibility_date": "2026-11-15",
+  "upload_source_maps": true,
+  "routes": [{ "pattern": "markets.marcantoniopovolo.com", "custom_domain": true }],
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"],
+    "binding": "ASSETS"
+  },
+  "d1_databases": [
+    { "binding": "DB", "database_name": "markets-by-mp", "database_id": "27c3fad0-5a4b-4263-a027-b55c954bc442", "migrations_dir": "migrations" }
+  ],
+  "ratelimits": [
+    { "name": "API_LIMITER", "namespace_id": "1001", "simple": { "limit": 120, "period": 60 } }
+  ],
+  // Dip Radar rules are checked every 30 minutes.
+  "triggers": { "crons": ["*/30 * * * *"] },
+  "vars": { "BETTER_AUTH_URL": "https://markets.marcantoniopovolo.com", "ENVIRONMENT": "production" },
+  "observability": { "enabled": true }
 }
