@@ -1,7 +1,7 @@
 {
   "name": "markets-by-mp",
   "private": true,
-  "version": "0.2.1",
+  "version": "0.2.2",
   "type": "module",
   "description": "Markets by MP: an investing platform and the Markets API that powers it.",
   "license": "MIT",

@@ -54,6 +54,7 @@ export function createMarket(p: MarketDataProvider, providers: ProviderInfo[], o
     async quotes(ids: string[]) {
       if (ids.length > MAX_BATCH) throw new ApiError(400, 'bad_request', `At most ${MAX_BATCH} instruments per request.`);
       return Promise.all(ids.map(id => svc.quote(id).catch(e => {
+        if (!(e instanceof ApiError && e.code === 'locked')) return { instrumentId: id, unavailable: true, message: e instanceof Error ? e.message : 'Unavailable', price: null, previousClose: null, change: null, changePct: null, currency: p.instrument(id)?.currency ?? 'USD', meta: null } as unknown as Quote;
         if (e instanceof ApiError && e.code === 'locked') return { instrumentId: id, locked: true, lockReason: (e.details as { reason?: string })?.reason ?? 'needs_key', message: e.message, price: null, previousClose: null, change: null, changePct: null, currency: inst(id).currency, meta: null } as unknown as Quote;
         throw e;
       })));
@@ -108,14 +109,15 @@ export function createMarket(p: MarketDataProvider, providers: ProviderInfo[], o
     },
     async overview() {
       const ids = ['index.spx', 'index.ixic', 'index.tsx', 'fx.usdcad', 'crypto.btc-usd', 'crypto.eth-usd'];
-      const benchmarks = (await svc.quotes(ids.filter(allowed))).filter(q => !(q as any).locked);
+      const benchmarks = (await svc.quotes(ids.filter(allowed))).filter(q => !(q as any).locked && !(q as any).unavailable);
       const tradable = featured().filter(i => i.tradable && i.assetClass !== 'fx' && i.assetClass !== 'crypto');
-      const qs = (await svc.quotes(tradable.map(i => i.id).slice(0, MAX_BATCH))).filter(q => !(q as any).locked);
+      const qs = (await svc.quotes(tradable.map(i => i.id).slice(0, 24))).filter(q => !(q as any).locked && !(q as any).unavailable);
       const sorted = [...qs].sort((a, b) => Number(b.changePct) - Number(a.changePct));
       return { benchmarks, gainers: sorted.slice(0, 5), decliners: sorted.slice(-5).reverse(), asOf: new Date().toISOString(), meta: benchmarks[0]?.meta };
     },
     async dipScreener(o: { windowDays: number; basis: 'close' | 'intraday'; minDropPct: number; assetClass?: string; sort: 'drop' | 'daily' | 'symbol' }) {
-      const list = featured().filter(i => i.tradable && i.assetClass !== 'fx' && (!o.assetClass || i.assetClass === o.assetClass));
+      // Capped so a cold request stays within Cloudflare's free-plan CPU limit; your own rules can watch anything.
+      const list = featured().filter(i => i.tradable && i.assetClass !== 'fx' && (!o.assetClass || i.assetClass === o.assetClass)).slice(0, 36);
       // A provider that fails for one instrument leaves it out of the scan; nothing is substituted.
       const rows = (await Promise.allSettled(list.map(i => svc.dipSnapshot(i.id, o.windowDays, o.basis)))).flatMap(r => r.status === 'fulfilled' ? [r.value] : []);
       const hits = rows.filter(r => r.dropPct != null && Number(r.dropPct) <= -o.minDropPct);

@@ -11,7 +11,10 @@ import { COMPOSITIONS, SEEDS } from './demo-catalogue';
 import { INSTRUMENTS } from './universe';
 import type { MarketDataProvider, ProviderInfo } from './types';
 
-const START = '2021-11-15';
+// Seed prices are defined at ORIGIN; paths are generated from START (shorter history = less CPU per request on
+// Cloudflare's free plan, which allows about 10 ms). The demo portfolio's first trade is in January 2024.
+const ORIGIN = '2021-11-15';
+const START = '2023-11-15';
 type Seed = (typeof SEEDS)[number];
 const seeds = new Map<string, Seed>(SEEDS.map(s => [s.id, s]));
 const instruments = INSTRUMENTS;
@@ -85,7 +88,8 @@ function generate(id: string, now: Date): Series {
   for (const c of calendarTo(today)) { if (c.date > today) break; if (crypto || (c.weekday !== 0 && c.weekday !== 6)) dates.push(c.date); }
   // Economic (total-return) path.
   // `start` is the raw price on START; before a split that is ratio x the split-adjusted price.
-  const adj0 = s.split && START < s.split.date ? s.start / s.split.ratio : s.start;
+  const base = s.split && ORIGIN < s.split.date ? s.start / s.split.ratio : s.start;
+  const adj0 = base * Math.exp(s.drift * (Date.parse(START) - Date.parse(ORIGIN)) / (365.25 * 86400000));
   const adj: number[] = []; let p = adj0;
   for (const d of dates) { p *= Math.exp(mu - sig * sig / 2 + sig * normal(`${id}:${d}`)); adj.push(p); }
   const ANCHOR = '2026-10-01';

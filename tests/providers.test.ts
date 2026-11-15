@@ -5,7 +5,7 @@ import { createApi } from '../src/server/app';
 import { setFetcher } from '../src/server/providers/fetch-cache';
 import { addUser, createTestDb } from './d1-shim';
 
-const env = { DB: createTestDb(), BETTER_AUTH_SECRET: 'x'.repeat(40), BETTER_AUTH_URL: 'http://localhost', ENVIRONMENT: 'test' };
+const env = { DB: createTestDb(), BETTER_AUTH_SECRET: 'x'.repeat(40), BETTER_AUTH_URL: 'http://localhost', ENVIRONMENT: 'test', COINGECKO_API_KEY: 'test-key' };
 const { app } = createApi(async c => { const u = c.req.header('x-test-user'); return u ? { userId: u, isAnonymous: c.req.header('x-test-guest') === '1' } : null; });
 let failCoinGecko = false;
 
@@ -200,5 +200,15 @@ describe('public stats', () => {
     expect(r.body.data.downloads).toMatchObject({ total: 22, mac: 15, windows: 7, latest: { version: 'v0.2.0' } });
     expect(r.body.data.apiCalls.total).toBeGreaterThanOrEqual(before + 3);
     expect(r.body.data.apiCalls.byKind.app).toBeGreaterThan(0);
+  });
+});
+
+describe('hosted site without a CoinGecko key', () => {
+  it('shows labelled demo crypto instead of failing, because the keyless API refuses Cloudflare', async () => {
+    const { app: bare } = createApi(async () => null);
+    const res = await bare.request('/api/v1/assets/crypto.btc-usd/quote', { headers: { 'sec-fetch-site': 'same-origin', 'cf-connecting-ip': '10.9.9.9' } }, { ...env, COINGECKO_API_KEY: undefined });
+    const body = await res.json() as any;
+    expect(res.status).toBe(200);
+    expect(body.data.meta.provenance).toBe('demo');
   });
 });

@@ -30,7 +30,7 @@ export function AssetRowBody({ inst, quote, showQuote = true }: { inst: Inst; qu
     <>
       <Ticker symbol={inst.symbol} />
       <span className="ar-main"><b>{inst.name}</b><span className="ar-sub"><span className="ar-sym">{inst.symbol}</span>{exchangeShort(inst.exchange)} · {CLASS_LABEL[inst.assetClass] ?? inst.assetClass}</span></span>
-      {showQuote && <span className="ar-quote">{quote?.locked ? <LockedPrice reason={quote.lockReason} /> : quote ? <><Price value={quote.price} currency={quote.currency} /><span className="row" style={{ gap: 6 }}>{quote.meta?.provenance === 'demo' && <span className="q-demo" title="Generated demo price, not a real market price">Demo</span>}<Change pct={quote.changePct} /></span></> : <span className="skeleton" style={{ width: 64, height: 12 }} />}</span>}
+      {showQuote && <span className="ar-quote">{quote?.unavailable ? <span className="faint">—</span> : quote?.locked ? <LockedPrice reason={quote.lockReason} /> : quote ? <><Price value={quote.price} currency={quote.currency} /><span className="row" style={{ gap: 6 }}>{quote.meta?.provenance === 'demo' && <span className="q-demo" title="Generated demo price, not a real market price">Demo</span>}<Change pct={quote.changePct} /></span></> : <span className="skeleton" style={{ width: 64, height: 12 }} />}</span>}
     </>
   );
 }

@@ -112,7 +112,21 @@ function DownloadButtons() {
   const win = /Windows/i.test(ua);
   const mac = <a key="mac" className={`btn block xl ${win ? '' : 'primary'}`} href={RELEASES}><Icon name="down" size={18} />Download for Mac</a>;
   const pc = <a key="win" className={`btn block xl ${win ? 'primary' : ''}`} href={RELEASES}><Icon name="down" size={18} />Download for Windows</a>;
-  return <div className="stack-sm">{win ? [pc, mac] : [mac, pc]}<p className="faint" style={{ textAlign: 'center' }}>About 10 MB. macOS 11+ or Windows 10+.</p></div>;
+  return (
+    <div className="stack-sm">
+      {win ? [pc, mac] : [mac, pc]}
+      <p className="faint" style={{ textAlign: 'center' }}>About 6 MB. macOS 11+ or Windows 10+.</p>
+      <details className="install-help">
+        <summary>{win ? 'Windows says it protected your PC?' : 'Mac says it can\'t check the app for malware?'}</summary>
+        <div className="stack-sm">
+          <p className="small muted">The app is free and open source but isn't signed with a paid Apple or Microsoft developer certificate yet, so your computer can't verify who made it. It's safe to open:</p>
+          <p className="small"><b>Mac:</b> open the downloaded app once and choose Done. Then go to System Settings, Privacy &amp; Security, scroll down and choose <b>Open Anyway</b> next to Markets by MP. Or, after dragging it to Applications, run this once in Terminal:</p>
+          <pre className="code small">xattr -dr com.apple.quarantine "/Applications/Markets by MP.app"</pre>
+          <p className="small"><b>Windows:</b> on the blue SmartScreen window, choose <b>More info</b>, then <b>Run anyway</b>.</p>
+        </div>
+      </details>
+    </div>
+  );
 }
 
 /** The one front door: what Markets is, live prices, and a panel to try the demo, sign in or sign up. */
@@ -176,16 +190,6 @@ export function Start({ mode: initial = 'login' }: { mode?: Mode }) {
                   <span className="demo-txt"><b>{demoBusy ? 'Opening the demo…' : guest ? 'Continue the demo' : 'Explore the demo'}</b><small>Sample portfolio, nothing to install</small></span>
                   <span aria-hidden className="demo-arrow">→</span>
                 </button>
-                <details className="signin-more" open={mode === 'signup' || undefined}>
-                  <summary>Have a web account? Sign in</summary>
-                  <div className="stack" style={{ paddingTop: 12 }}>
-                    <div className="seg full" role="tablist" aria-label="Account">
-                      <button role="tab" aria-selected={mode === 'login'} onClick={() => setMode('login')}>Sign in</button>
-                      <button role="tab" aria-selected={mode === 'signup'} onClick={() => setMode('signup')}>Create account</button>
-                    </div>
-                    {mode === 'login' ? <LoginForm onMode={setMode} /> : <SignUpForm guest={guest} />}
-                  </div>
-                </details>
               </>}
               {mode === 'reset' && <>
                 <div className="notice warn"><Icon name="info" /><span>Password reset by email isn't available yet: the beta has no email provider connected, so reset links can't be delivered. If you're locked out, contact <a href="https://marcantoniopovolo.com/contact">Marcantonio</a>.</span></div>

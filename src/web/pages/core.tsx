@@ -226,7 +226,7 @@ export function Asset({ id, signedIn }: { id: string; signedIn: boolean }) {
             <button className="btn" onClick={() => setDialog('watch')}><Icon name="watchlists" size={16} />Watch</button>
             {i.tradable && <button className="btn" onClick={() => setDialog('rule')}><Icon name="dip" size={16} />Set a dip rule</button>}
             {i.tradable && <Link to={`/app/what-if?instrument=${id}`} className="btn primary"><Icon name="whatif" size={16} />What if I bought it?</Link>}
-          </> : <Link to="/signup" className="btn primary">Sign up to watch and set alerts</Link>}
+          </> : <Link to="/" className="btn primary">Get the app</Link>}
         </div>
       </div>
       {snap && snap.dropPct && Number(snap.dropPct) < 0 && <div className="notice"><Icon name="dip" /><span>{signedPct(snap.dropPct)} from its 30-day closing high of {priceFmt(snap.reference)} ({dateFmt(snap.referenceDate)}). The daily change is shown separately above. {signedIn && <Link to={`/app/dip-radar?context=${id}`}>See what accompanies this</Link>}</span></div>}

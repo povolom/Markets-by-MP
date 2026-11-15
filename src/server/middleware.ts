@@ -68,7 +68,9 @@ export function audienceOf(c: { req: { header(n: string): string | undefined }; 
 export function edgeCache(maxAge: number) {
   return createMiddleware<AppEnv>(async (c, next) => {
     const cache = (globalThis as any).caches?.default as Cache | undefined;
-    if (!cache || c.req.method !== 'GET' || c.get('userId')) { await next(); return; }
+    // Visitors and demo guests all see the same shared demo data, so their responses can be cached; only
+    // signed-in accounts (which may use their own data keys) skip the cache.
+    if (!cache || c.req.method !== 'GET' || (c.get('userId') && !c.get('isAnonymous'))) { await next(); return; }
     // The app and outside API clients can see different data (some providers allow display but not redistribution).
     const key = new Request(`${c.req.url}${c.req.url.includes('?') ? '&' : '?'}__aud=${audienceOf(c)}`, { method: 'GET' });
     const hit = await cache.match(key);

@@ -40,7 +40,15 @@ export function getRegistry(env: { YAHOO_RESEARCH?: string; MARKET_DATA?: string
   const cg = createCoinGecko(env.COINGECKO_API_KEY);
   const ecb = createEcb();
   const research = createYahooResearch(env.YAHOO_RESEARCH === 'enabled');
-  const src = (id: string): Source => offline ? 'demo' : personal && ySym(id) ? 'yahoo' : ENTRIES.get(id)?.source ?? 'demo';
+  // CoinGecko's keyless API refuses Cloudflare's shared servers, so the hosted site uses it only with a key;
+  // the desktop app (personal) calls it from the user's own connection, where keyless works.
+  const cryptoLive = personal || Boolean(env.COINGECKO_API_KEY);
+  const src = (id: string): Source => {
+    if (offline) return 'demo';
+    if (personal && ySym(id)) return 'yahoo';
+    const s = ENTRIES.get(id)?.source ?? 'demo';
+    return s === 'coingecko' && !cryptoLive ? 'demo' : s;
+  };
   const infoFor: Record<Source, ProviderInfo> = { demo: d.info, coingecko: cg.info, ecb: ecb.info, yahoo: yahooInfo };
   const cgId = (id: string) => { const e = ENTRIES.get(id); if (!e?.coingeckoId) throw new Error(`No CoinGecko ID for ${id}`); return e.coingeckoId; };
   const pair = (inst: Instrument) => inst.symbol.replace(/[^A-Z]/g, '').slice(0, 6);

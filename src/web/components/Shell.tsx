@@ -159,10 +159,7 @@ export function PublicHeader() {
       <nav aria-label="Site">
         <button className="btn ghost sm hide-m" onClick={() => setSearch(true)}><Icon name="discover" size={16} />Search</button>
         <Link to="/developers" className="btn ghost sm hide-m">Developers</Link>
-        {session.data ? <Link to="/app" className="btn primary sm">Open app</Link> : <>
-          <Link to="/login" className="btn ghost sm">Sign in</Link>
-          <button className="btn primary sm" onClick={() => startDemo(toast)}>Try the demo</button>
-        </>}
+        {session.data ? <Link to="/app" className="btn primary sm">Open the demo</Link> : <button className="btn primary sm" onClick={() => startDemo(toast)}>Try the demo</button>}
       </nav>
       {search && <SearchDialog onClose={() => setSearch(false)} />}
     </header>
