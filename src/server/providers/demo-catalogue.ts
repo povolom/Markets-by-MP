@@ -70,7 +70,7 @@ const SECTOR_RISK: Record<string, [number, number]> = {
   Utilities: [0.04, 0.17], 'Real Estate': [0.04, 0.22],
 };
 const ROWS: Row[] = [
-  ['WMT', 'Walmart Inc.', 'NY', 'Consumer Staples', 'Discount Stores', 47, 1.3], ['HD', 'The Home Depot, Inc.', 'NY', 'Consumer Discretionary', 'Home Improvement Retail', 370, 2.4],
+  ['WMT', 'Walmart Inc.', 'US', 'Consumer Staples', 'Discount Stores', 47, 1.3], ['HD', 'The Home Depot, Inc.', 'NY', 'Consumer Discretionary', 'Home Improvement Retail', 370, 2.4],
   ['DIS', 'The Walt Disney Company', 'NY', 'Communication Services', 'Entertainment', 160, 0.8], ['MCD', "McDonald's Corporation", 'NY', 'Consumer Discretionary', 'Restaurants', 250, 2.3],
   ['NKE', 'NIKE, Inc.', 'NY', 'Consumer Discretionary', 'Footwear & Accessories', 170, 1.5], ['SBUX', 'Starbucks Corporation', 'US', 'Consumer Discretionary', 'Restaurants', 115, 2.4],
   ['PEP', 'PepsiCo, Inc.', 'US', 'Consumer Staples', 'Beverages', 165, 3.0], ['BAC', 'Bank of America Corporation', 'NY', 'Financials', 'Banks', 46, 2.3],
@@ -88,8 +88,8 @@ const ROWS: Row[] = [
   ['AVGO', 'Broadcom Inc.', 'US', 'Technology', 'Semiconductors', 55, 1.3], ['QCOM', 'QUALCOMM Incorporated', 'US', 'Technology', 'Semiconductors', 180, 2.0],
   ['CSCO', 'Cisco Systems, Inc.', 'US', 'Technology', 'Communication Equipment', 56, 2.8], ['IBM', 'International Business Machines Corporation', 'NY', 'Technology', 'IT Services', 118, 3.5],
   ['UBER', 'Uber Technologies, Inc.', 'NY', 'Technology', 'Software', 44], ['ABNB', 'Airbnb, Inc.', 'US', 'Consumer Discretionary', 'Travel Services', 190],
-  ['SPOT', 'Spotify Technology S.A.', 'NY', 'Communication Services', 'Internet Content', 270], ['PLTR', 'Palantir Technologies Inc.', 'NY', 'Technology', 'Software', 25],
-  ['COIN', 'Coinbase Global, Inc.', 'US', 'Financials', 'Capital Markets', 300], ['SQ', 'Block, Inc.', 'NY', 'Financials', 'Credit Services', 200],
+  ['SPOT', 'Spotify Technology S.A.', 'NY', 'Communication Services', 'Internet Content', 270], ['PLTR', 'Palantir Technologies Inc.', 'US', 'Technology', 'Software', 25],
+  ['COIN', 'Coinbase Global, Inc.', 'US', 'Financials', 'Capital Markets', 300], ['XYZ', 'Block, Inc.', 'NY', 'Financials', 'Credit Services', 200],
   ['F', 'Ford Motor Company', 'NY', 'Consumer Discretionary', 'Auto Manufacturers', 19, 4.5], ['GM', 'General Motors Company', 'NY', 'Consumer Discretionary', 'Auto Manufacturers', 60, 1.0],
   ['TGT', 'Target Corporation', 'NY', 'Consumer Staples', 'Discount Stores', 250, 2.6], ['LULU', 'Lululemon Athletica Inc.', 'US', 'Consumer Discretionary', 'Apparel Retail', 450],
   ['BNS', 'The Bank of Nova Scotia', 'TO', 'Financials', 'Banks', 85, 6.0], ['BMO', 'Bank of Montreal', 'TO', 'Financials', 'Banks', 135, 4.5],
@@ -105,7 +105,7 @@ const ROWS: Row[] = [
   ['WSP', 'WSP Global Inc.', 'TO', 'Industrials', 'Engineering & Construction', 170, 0.6], ['GIB.A', 'CGI Inc. (Class A)', 'TO', 'Technology', 'IT Services', 110],
   ['OTEX', 'Open Text Corporation', 'TO', 'Technology', 'Software', 63, 2.9], ['QSR', 'Restaurant Brands International Inc.', 'TO', 'Consumer Discretionary', 'Restaurants', 73, 3.2],
 ];
-const ETF_ROWS: [string, string, 'US' | 'TO' | 'AR', number, number, number, string][] = [
+const ETF_ROWS: [string, string, 'US' | 'TO' | 'AR' | 'BZ', number, number, number, string][] = [
   // [symbol, name, exchange, price on 2021-11-15, yield %, expense %, description]
   ['VEQT', 'Vanguard All-Equity ETF Portfolio', 'TO', 42, 1.7, 0.24, 'All-equity global portfolio in one ETF.'], ['VGRO', 'Vanguard Growth ETF Portfolio', 'TO', 33, 2.0, 0.24, 'About 80% stocks and 20% bonds.'],
   ['XGRO', 'iShares Core Growth ETF Portfolio', 'TO', 26, 2.0, 0.2, 'About 80% stocks and 20% bonds.'], ['XBAL', 'iShares Core Balanced ETF Portfolio', 'TO', 30, 2.3, 0.2, 'About 60% stocks and 40% bonds.'],
@@ -114,9 +114,10 @@ const ETF_ROWS: [string, string, 'US' | 'TO' | 'AR', number, number, number, str
   ['SPY', 'SPDR S&P 500 ETF Trust', 'AR', 465, 1.3, 0.09, 'The oldest S&P 500 ETF.'], ['IVV', 'iShares Core S&P 500 ETF', 'AR', 468, 1.3, 0.03, 'Tracks the S&P 500.'],
   ['VUG', 'Vanguard Growth ETF', 'AR', 320, 0.5, 0.04, 'Large US growth companies.'], ['VYM', 'Vanguard High Dividend Yield ETF', 'AR', 110, 2.9, 0.06, 'US companies with higher dividends.'],
   ['VXUS', 'Vanguard Total International Stock ETF', 'US', 64, 3.0, 0.07, 'Stocks outside the US.'], ['BND', 'Vanguard Total Bond Market ETF', 'US', 85, 3.4, 0.03, 'US investment-grade bonds.'],
-  ['GLD', 'SPDR Gold Shares', 'AR', 175, 0, 0.4, 'Tracks the price of gold.'], ['ARKK', 'ARK Innovation ETF', 'AR', 110, 0, 0.75, 'Actively managed "disruptive innovation" stocks.'],
+  ['GLD', 'SPDR Gold Shares', 'AR', 175, 0, 0.4, 'Tracks the price of gold.'], ['ARKK', 'ARK Innovation ETF', 'BZ', 110, 0, 0.75, 'Actively managed "disruptive innovation" stocks.'],
 ];
-const EXT: Record<string, { ex: string; exName: string; ccy: string; country: string }> = { US, NY, TO, AR };
+const BZ = { ex: 'BATS', exName: 'Cboe BZX', ccy: 'USD', country: 'US' };
+const EXT: Record<string, { ex: string; exName: string; ccy: string; country: string }> = { US, NY, TO, AR, BZ };
 for (const [sym, name, ex, sector, industry, start, y] of ROWS) {
   const e = EXT[ex]; const id = `${e.ex.toLowerCase()}.${sym.toLowerCase()}`;
   if (SEEDS.some(x => x.id === id)) continue;
@@ -140,7 +141,7 @@ export const ALIASES: Record<string, string[]> = {
   'xtse.td': ['td bank', 'toronto dominion'], 'xtse.bns': ['scotiabank', 'scotia'], 'xtse.bmo': ['bank of montreal'], 'xtse.cm': ['cibc'], 'xtse.bce': ['bell'],
   'xtse.cnr': ['cn rail', 'canadian national'], 'xtse.cp': ['cp rail', 'cpkc'], 'xtse.atd': ['couche tard', 'circle k'], 'xtse.l': ['loblaws', 'shoppers drug mart'],
   'xtse.qsr': ['tim hortons', 'burger king'], 'xtse.rci.b': ['rogers'], 'xtse.t': ['telus'], 'xnys.brk.b': ['berkshire', 'warren buffett'], 'xnys.ge': ['general electric'],
-  'xnys.sq': ['square', 'cash app'], 'xnas.amzn': ['aws', 'amazon web services'], 'xnas.aapl': ['iphone'], 'xnas.msft': ['windows', 'xbox', 'azure'],
+  'xnys.xyz': ['square', 'cash app', 'block'], 'xnas.amzn': ['aws', 'amazon web services'], 'xnas.aapl': ['iphone'], 'xnas.msft': ['windows', 'xbox', 'azure'],
   'index.spx': ['s&p 500', 'sp500', 's and p'], 'index.ixic': ['nasdaq'], 'index.tsx': ['tsx', 'toronto stock exchange'], 'index.dji': ['dow', 'dow jones'],
   'arcx.voo': ['s&p 500 etf'], 'xtse.vfv': ['s&p 500 cad'], 'crypto.btc-usd': ['btc'], 'crypto.eth-usd': ['eth', 'ether'], 'crypto.sol-usd': ['sol'],
   'arcx.gld': ['gold'], 'fx.usdcad': ['loonie', 'canadian dollar', 'usd cad'],

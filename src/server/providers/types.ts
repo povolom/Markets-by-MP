@@ -25,6 +25,7 @@ export interface ProviderInfo {
 export interface MarketDataProvider {
   info: ProviderInfo;
   instruments(): Instrument[];
+  featured?(): Instrument[];                                  // a smaller, curated set for whole-market scans
   instrument(id: string): Instrument | undefined;
   history(id: string): Promise<Bar[]>;                       // daily bars, oldest first, completed sessions + today if closed
   quote(id: string, now: Date): Promise<Quote>;

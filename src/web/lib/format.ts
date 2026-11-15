@@ -11,7 +11,7 @@ export function money(v: string | number | null | undefined, currency?: string, 
 export function priceFmt(v: string | number | null | undefined) {
   if (v == null || v === '') return '—';
   const n = Number(v);
-  return n >= 1000 ? nf(2, 2).format(n) : n >= 1 ? nf(2, 2).format(n) : nf(2, 6).format(n);
+  return Math.abs(n) >= 10 ? nf(2, 2).format(n) : Math.abs(n) >= 1 ? nf(2, 4).format(n) : Math.abs(n) >= 0.01 ? nf(2, 6).format(n) : nf(2, 10).format(n);
 }
 
 /** Signed percent with an explicit + or − so direction never depends on colour. */

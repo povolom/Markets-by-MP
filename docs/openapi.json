@@ -2,8 +2,8 @@
  "openapi": "3.1.0",
  "info": {
   "title": "Markets API",
-  "version": "1.0.0-beta.1",
-  "description": "The investing API behind Markets by MP. Public market-data endpoints are keyless within the documented limits (120 requests a minute per IP, 600 when signed in). Private endpoints need a signed-in session and only ever return your own data. **All market data is currently generated demo data;** no licensed production provider is connected yet. Every response says where its data came from and when.",
+  "version": "1.0.0-beta.2",
+  "description": "The investing API behind Markets by MP. Public market-data endpoints are keyless within the documented limits (120 requests a minute per IP, 600 when signed in). Private endpoints need a signed-in session and only ever return your own data. **Stock, ETF, fund and index prices are generated demo data** until a licensed feed is connected. FX rates are real European Central Bank reference rates. Real crypto prices (CoinGecko) appear in the Markets app only; their terms do not allow redistribution here. Every response says where its data came from and when.",
   "license": {
    "name": "MIT (code)",
    "url": "https://github.com/povolom/Markets-by-MP/blob/main/LICENSE"

@@ -1,31 +1,56 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useApi } from '../lib/api';
-import { CLASS_LABEL } from '../lib/format';
-import { Ticker } from './ui';
+import { AssetRowBody, NoMatches, useAssetSearch, type Inst } from './AssetSearch';
+import { Icon } from './ui';
 
-/** A combobox that searches Markets' coverage. `tradableOnly` hides indexes and FX pairs. */
-export function InstrumentPicker({ value, onChange, label = 'Instrument', tradableOnly }: { value: string | null; onChange: (id: string, inst: any) => void; label?: string; tradableOnly?: boolean }) {
-  const [q, setQ] = useState('');
-  const [open, setOpen] = useState(false);
-  const [sel, setSel] = useState(0);
+/** Choose one asset. Shows the chosen asset as a card with a Change button; searching opens inline
+ * results with prices. `tradableOnly` hides indexes and currency pairs. */
+export function InstrumentPicker({ value, onChange, label = 'Asset', tradableOnly }: { value: string | null; onChange: (id: string, inst: any) => void; label?: string; tradableOnly?: boolean }) {
   const id = useId();
-  const current = useApi<{ data: any }>(value ? `/assets/${value}` : null, [value]);
-  const { data } = useApi<{ data: any[] }>(open ? `/assets/search?q=${encodeURIComponent(q)}&limit=8` : null, [q, open]);
-  const items = (data?.data ?? []).filter(i => !tradableOnly || i.tradable);
-  const pick = (i: any) => { onChange(i.id, i); setQ(''); setOpen(false); };
+  const [editing, setEditing] = useState(!value);
+  const [q, setQ] = useState('');
+  const [sel, setSel] = useState(0);
+  const input = useRef<HTMLInputElement>(null);
+  const current = useApi<{ data: Inst }>(value ? `/assets/${value}` : null, [value]);
+  const quote = useApi<{ data: any }>(value && !editing ? `/assets/${value}/quote` : null, [value, editing]);
+  const { items, qmap, debounced, loading } = useAssetSearch(q, { limit: 6, tradableOnly, enabled: editing });
+  useEffect(() => { if (!value) setEditing(true); }, [value]);
+  const pick = (i: Inst) => { onChange(i.id, i); setQ(''); setEditing(false); };
+  const startEditing = () => { setEditing(true); setTimeout(() => input.current?.focus(), 0); };
+
   return (
-    <div className="field" style={{ position: 'relative', display: 'grid', gap: 6 }}>
-      <label htmlFor={id} className="small muted" style={{ fontWeight: 500 }}>{label}</label>
-      <input id={id} className="input" role="combobox" aria-expanded={open} aria-controls={`${id}-list`} aria-autocomplete="list" autoComplete="off"
-        placeholder={current.data?.data ? `${current.data.data.symbol} · ${current.data.data.name}` : 'Company, ticker or nickname'}
-        value={q} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)}
-        onChange={e => { setQ(e.target.value); setOpen(true); setSel(0); }}
-        onKeyDown={e => { if (e.key === 'ArrowDown') { e.preventDefault(); setSel(s => Math.min(items.length - 1, s + 1)); } if (e.key === 'ArrowUp') { e.preventDefault(); setSel(s => Math.max(0, s - 1)); } if (e.key === 'Enter' && open && items[sel]) { e.preventDefault(); pick(items[sel]); } }} />
-      {current.data?.data && !q && <span className="faint">Selected: {current.data.data.symbol} ({CLASS_LABEL[current.data.data.assetClass]}, {current.data.data.currency})</span>}
-      {open && items.length > 0 && (
-        <ul id={`${id}-list`} role="listbox" className="search-results card" style={{ padding: 4, marginTop: 2, maxHeight: 260, overflow: 'auto' }}>
-          {items.map((i, n) => <li key={i.id} role="option" aria-selected={n === sel}><button type="button" onMouseDown={e => { e.preventDefault(); pick(i); }} style={{ background: n === sel ? 'var(--surface-2)' : undefined }}><Ticker symbol={i.symbol} /><span style={{ flex: 1 }}><b>{i.symbol}</b> <span className="muted small">{i.name}</span></span><span className="faint">{i.currency}</span></button></li>)}
-        </ul>
+    <div className="picker">
+      <span className="picker-label" id={`${id}-label`}>{label}</span>
+      {!editing && current.data?.data ? (
+        <div className="picked" aria-labelledby={`${id}-label`}>
+          <AssetRowBody inst={current.data.data} quote={quote.data?.data} />
+          <button type="button" className="btn sm" onClick={startEditing} aria-label={`Change ${label.toLowerCase()}`}>Change</button>
+        </div>
+      ) : (
+        <div className="picker-search">
+          <div className="search-box">
+            <Icon name="discover" size={17} />
+            <input ref={input} autoFocus={Boolean(value)} role="combobox" aria-expanded aria-controls={`${id}-list`} aria-labelledby={`${id}-label`} autoComplete="off" spellCheck={false}
+              placeholder="Search a company, ticker or crypto" value={q}
+              onChange={e => { setQ(e.target.value); setSel(0); }}
+              onKeyDown={e => {
+                if (e.key === 'ArrowDown') { e.preventDefault(); setSel(s => Math.min(items.length - 1, s + 1)); }
+                if (e.key === 'ArrowUp') { e.preventDefault(); setSel(s => Math.max(0, s - 1)); }
+                if (e.key === 'Enter' && items[sel]) { e.preventDefault(); pick(items[sel]); }
+                if (e.key === 'Escape' && value) { e.stopPropagation(); setEditing(false); }
+              }} />
+            {value && <button type="button" className="btn ghost sm" onClick={() => setEditing(false)}>Cancel</button>}
+          </div>
+          <ul id={`${id}-list`} role="listbox" className="results" aria-label="Matching assets">
+            {!debounced && <li className="results-cap" role="presentation">Popular</li>}
+            {items.map((i, n) => (
+              <li key={i.id} role="option" aria-selected={n === sel}>
+                <button type="button" className={`result ${n === sel ? 'active' : ''}`} onMouseEnter={() => setSel(n)} onClick={() => pick(i)}><AssetRowBody inst={i} quote={qmap.get(i.id)} /></button>
+              </li>
+            ))}
+            {!loading && debounced && !items.length && <li role="presentation"><NoMatches q={debounced} /></li>}
+          </ul>
+        </div>
       )}
     </div>
   );

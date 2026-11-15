@@ -7,12 +7,14 @@ import { exchangeTimezone, localParts, sessionStatus } from '../../domain/market
 import { annualizedVolatility, dailyReturns, fmtPct, maxDrawdown } from '../../domain/stats';
 import type { Bar, DividendRecord, Financials, Instrument, MarketEvent, NewsItem, Quote, Statistics } from '../../domain/types';
 import { fnv1a } from '../../domain/csv';
-import { COMPOSITIONS, SEEDS, toInstrument } from './demo-catalogue';
+import { COMPOSITIONS, SEEDS } from './demo-catalogue';
+import { INSTRUMENTS } from './universe';
 import type { MarketDataProvider, ProviderInfo } from './types';
 
 const START = '2021-11-15';
-const seeds = new Map(SEEDS.map(s => [s.id, s]));
-const instruments = SEEDS.map(toInstrument);
+type Seed = (typeof SEEDS)[number];
+const seeds = new Map<string, Seed>(SEEDS.map(s => [s.id, s]));
+const instruments = INSTRUMENTS;
 const byId = new Map(instruments.map(i => [i.id, i]));
 
 /** FNV-1a 32-bit over UTF-16 code units: fast and deterministic (seeding only, not for security). */
@@ -30,6 +32,20 @@ const addDays = (d: string, n: number) => new Date(Date.parse(d + 'T00:00:00Z') 
 const weekday = (d: string) => new Date(d + 'T00:00:00Z').getUTCDay();
 const r4 = (n: number) => String(Math.round(n * 1e4) / 1e4);
 const r4f = (n: number) => (Math.round(n * 1e4) / 1e4).toFixed(4);
+
+/** Listings outside the curated catalogue get a plain, deterministic demo profile: a price level, drift and
+ * volatility derived from the ID, with no dividends, splits or financial statements. */
+function seedOf(id: string): Seed {
+  const hit = seeds.get(id); if (hit) return hit;
+  const inst = byId.get(id)!; const h = hash32(id);
+  const u = (h % 10007) / 10007, v = ((h >>> 12) % 1009) / 1009;
+  const [lo, hi, vol] = inst.assetClass === 'crypto' ? [0.05, 80, 0.85 + v * 0.3] : inst.assetClass === 'fx' ? [0.6, 1.6, 0.07] : inst.assetClass === 'etf' ? [15, 120, 0.13 + v * 0.1] : [6, 220, 0.24 + v * 0.3];
+  const s: Seed = { id, symbol: inst.symbol, name: inst.name, cls: inst.assetClass, ex: inst.exchange, exName: inst.exchangeName, ccy: inst.currency, country: inst.country, sector: inst.sector, industry: inst.industry,
+    start: Math.round(Math.exp(Math.log(lo) + u * (Math.log(hi) - Math.log(lo))) * 100) / 100, drift: inst.assetClass === 'fx' ? 0 : 0.03 + v * 0.08, vol, desc: inst.description };
+  if (seeds.size > 5000) for (const k of [...seeds.keys()].slice(SEEDS.length, SEEDS.length + 1000)) seeds.delete(k);
+  seeds.set(id, s);
+  return s;
+}
 
 /** Every calendar date from START to `to`, computed once and shared by all instruments. */
 let calendar: { date: string; weekday: number }[] = [];
@@ -57,7 +73,7 @@ interface Series { bars: Bar[]; divs: { exDate: string; payDate: string; amount:
 const cache = new Map<string, Series>();
 
 function generate(id: string, now: Date): Series {
-  const inst = byId.get(id)!; const s = seeds.get(id)!;
+  const inst = byId.get(id)!; const s = seedOf(id);
   const through = completedThrough(inst, now);
   const key = `${id}:${through}:${localParts(now, 'UTC').date}`;
   const hit = cache.get(key); if (hit) return hit;
@@ -144,7 +160,7 @@ export function createDemoProvider(): MarketDataProvider {
       return { instrumentId: id, price: fmtPrice(pr), previousClose: fmtPrice(pc), change: fmtPrice(pr.minus(pc)), changePct: pct(pr.minus(pc).div(pc).times(100)), dayHigh: hi == null ? null : r4(hi), dayLow: lo == null ? null : r4(lo), currency: inst.currency, session, meta: meta(observed) } satisfies Quote;
     },
     async dividends(id, now) {
-      const s = seeds.get(id)!; const { bars, divs } = generate(id, now);
+      const s = seedOf(id); const { bars, divs } = generate(id, now);
       if (!s.yieldPct || !s.payMonths) return [];
       const today = localParts(now, 'UTC').date;
       const last = Number(bars[bars.length - 1].close), perPay = s.yieldPct / 100 / s.payMonths.length;
@@ -176,7 +192,7 @@ export function createDemoProvider(): MarketDataProvider {
         ev.push({ id: `${id}:ex:${d.exDate}`, instrumentId: id, type: 'dividend_ex', date: d.exDate, confirmed: d.status !== 'projected', title: `${inst.symbol} ex-dividend${d.status === 'projected' ? ' (projected)' : ''}` });
         if (d.payDate) ev.push({ id: `${id}:pay:${d.payDate}`, instrumentId: id, type: 'dividend_pay', date: d.payDate, confirmed: d.status !== 'projected', title: `${inst.symbol} dividend payment${d.status === 'projected' ? ' (projected)' : ''}` });
       }
-      const s = seeds.get(id)!;
+      const s = seedOf(id);
       if (s.split) ev.push({ id: `${id}:split`, instrumentId: id, type: 'split', date: s.split.date, confirmed: true, title: `${inst.symbol} ${s.split.ratio}-for-1 split` });
       return ev.sort((a, b) => a.date.localeCompare(b.date));
     },
@@ -197,7 +213,7 @@ export function createDemoProvider(): MarketDataProvider {
       return out.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
     },
     async statistics(id, now) {
-      const inst = byId.get(id)!; const s = seeds.get(id)!; const { bars } = generate(id, now);
+      const inst = byId.get(id)!; const s = seedOf(id); const { bars } = generate(id, now);
       const year = bars.slice(-(inst.assetClass === 'crypto' ? 365 : 252));
       const closes = year.map(b => Number(b.close)), last = closes[closes.length - 1];
       const equity = inst.assetClass === 'stock', fund = inst.assetClass === 'etf' || inst.assetClass === 'mutual_fund';
@@ -216,7 +232,7 @@ export function createDemoProvider(): MarketDataProvider {
       } satisfies Statistics;
     },
     async financials(id, now) {
-      const inst = byId.get(id)!; const s = seeds.get(id)!;
+      const inst = byId.get(id)!; const s = seedOf(id);
       if (inst.assetClass !== 'stock' || !s.revenueB) return null;
       const y = Number(localParts(now, 'UTC').date.slice(0, 4)) - 1;
       const periods = [0, 1, 2, 3].map(k => `FY${y - k}`);

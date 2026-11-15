@@ -11,7 +11,7 @@
 | Onboarding (name, base currency, interests) | Implemented | Short and skippable |
 | Profile, theme, data export, account deletion | Implemented | Export is full JSON; deletion cascades through every table |
 | Watchlists: multiple, create/rename/reorder/delete, add/remove, sort/filter, sparklines | Implemented | Cross-device via the API |
-| Search by company name, ticker or nickname | Implemented | Ranked matching with aliases ("google", "coca cola", "royal bank") and typo tolerance; add several assets from one dialog. Demo catalogue covers about 130 instruments |
+| Search by company name, ticker or nickname | Implemented | Ranked matching with aliases ("google", "coca cola", "royal bank") and typo tolerance across about 12,000 instruments (every US-listed stock and ETF, major TSX listings, top 250 crypto, 12 currency pairs). The same search and picker are used for watchlists, dip rules, plans, transactions and the global search |
 | Asset pages: quote, session, chart ranges, raw vs total-return, statistics by asset class, financials, dividends, events, news, related, discussions | Implemented on **demo data** | Indexes marked not purchasable; crypto has no valuation metrics |
 | News | **Demo-only** | Demo headlines, labelled, never used to explain moves. Real news needs a licensed provider. |
 | Portfolio: multiple portfolios, manual transactions, CAD/USD, trade-date FX, dividends, fees, splits, contributions vs gains, missing cost basis | Implemented | Prices are demo data |
@@ -31,7 +31,9 @@
 | Community: discussions | **Demo-only** | Labelled sample discussions and bookmarks. Public posting stays closed until reporting, blocking and moderation run |
 | Read-only brokerage connections | **Blocked** | No aggregation provider. Wealthsimple/Questrade coverage not verified. No credentials ever collected. |
 | Markets API: public keyless endpoints, private endpoints, OpenAPI, interactive docs, status, changelog, coverage, rate limits, CORS | Implemented | |
-| Production market data | **Blocked** | No licensed provider. The Yahoo adapter is isolated, off, and has no public display or redistribution rights. |
+| Crypto prices and history | Implemented | Real, from CoinGecko (keyless or a free Demo key), credited in the app. Not redistributed through the public API (`403 not_licensed`). History covers the last 365 days |
+| Exchange rates | Implemented | Real European Central Bank reference rates via Frankfurter, used for FX quotes and portfolio currency conversion |
+| Stock, ETF, fund and index prices | **Demo-only** | Generated and labelled. Free stock feeds (Finnhub, Twelve Data, Alpha Vantage, FMP) are personal-use only; a licensed feed is needed for public display. The Yahoo adapter stays isolated and off |
 | Strategy Lab | Not started (later stage) | |
 | Native iOS/Android/desktop apps | Not started | The PWA installs on supported browsers; it is not a native app. |
 | Trading, transfers, money movement | Out of scope | Never in the beta |

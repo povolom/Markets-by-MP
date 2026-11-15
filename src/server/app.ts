@@ -5,7 +5,7 @@ import type { MiddlewareHandler } from 'hono';
 import type { AppEnv } from './env';
 import { ApiError, errorResponse } from './http';
 import { createMarket, type Market } from './market';
-import { edgeCache, publicCors, rateLimit, requestId, sameOrigin } from './middleware';
+import { audienceOf, edgeCache, publicCors, rateLimit, requestId, sameOrigin } from './middleware';
 import { getRegistry } from './providers/registry';
 import { CHANGELOG, publicRoutes } from './routes/public';
 import { privateRoutes } from './routes/private';
@@ -15,20 +15,24 @@ export type SessionResolver = (c: Parameters<MiddlewareHandler<AppEnv>>[0]) => P
 const PUBLIC_PATHS = ['/api/v1/status', '/api/v1/coverage', '/api/v1/changelog', '/api/v1/assets/*', '/api/v1/quotes', '/api/v1/markets/*', '/api/v1/news', '/api/v1/screeners/*', '/api/v1/fx', '/api/v1/openapi.json'];
 
 export function createApi(resolveSession: SessionResolver) {
-  let market: Market | null = null;
+  let markets: { app: Market; api: Market } | null = null;
   const app = new OpenAPIHono<AppEnv>({
     defaultHook: (result, c) => {
       if (!result.success) return errorResponse(c, new ApiError(400, 'bad_request', 'Some fields are missing or invalid.', result.error.issues.map(i => ({ path: i.path.join('.'), message: i.message }))));
     },
   });
-  const getMarket = (env: AppEnv['Bindings']) => (market ??= (() => { const r = getRegistry(env); return createMarket(r.market, r.providers); })());
+  const getMarkets = (env: AppEnv['Bindings']) => (markets ??= (() => {
+    const r = getRegistry(env);
+    return { app: createMarket(r.market, r.providers, { audience: 'app', sourceOf: r.sourceOf }), api: createMarket(r.market, r.providers, { audience: 'api', sourceOf: r.sourceOf }) };
+  })());
+  const getMarket = (env: AppEnv['Bindings']) => getMarkets(env).app;
 
   app.use('*', requestId);
   app.onError((e, c) => errorResponse(c, e));
   app.notFound(c => errorResponse(c, new ApiError(404, 'not_found', 'No such endpoint. See /api/v1/docs.')));
 
   app.use('/api/v1/*', async (c, next) => {
-    getMarket(c.env);
+    getMarkets(c.env);
     const s = await resolveSession(c);
     c.set('userId', s?.userId ?? null); c.set('isAnonymous', s?.isAnonymous ?? false);
     await next();
@@ -38,15 +42,16 @@ export function createApi(resolveSession: SessionResolver) {
   for (const p of ['/api/v1/assets/*', '/api/v1/markets/*', '/api/v1/screeners/*', '/api/v1/coverage']) app.use(p, edgeCache(60));
   app.use('/api/v1/*', sameOrigin);
 
-  app.route('/api/v1', publicRoutes(() => market!));
-  app.route('/api/v1', privateRoutes(() => market!));
+  // Public routes serve the app and outside clients from the same URLs; each gets what it may see.
+  app.route('/api/v1', publicRoutes(c => markets![audienceOf(c)]));
+  app.route('/api/v1', privateRoutes(() => markets!.app));
 
   app.openAPIRegistry.registerComponent('securitySchemes', 'session', { type: 'apiKey', in: 'cookie', name: 'better-auth.session_token', description: 'Session cookie set by signing in on markets.marcantoniopovolo.com. Private endpoints are same-origin only; third-party access to private data will use explicit, scoped consent (not yet available).' });
   app.doc31('/api/v1/openapi.json', c => ({
     openapi: '3.1.0',
     info: {
       title: 'Markets API', version: CHANGELOG[0].version,
-      description: 'The investing API behind Markets by MP. Public market-data endpoints are keyless within the documented limits (120 requests a minute per IP, 600 when signed in). Private endpoints need a signed-in session and only ever return your own data. **All market data is currently generated demo data;** no licensed production provider is connected yet. Every response says where its data came from and when.',
+      description: 'The investing API behind Markets by MP. Public market-data endpoints are keyless within the documented limits (120 requests a minute per IP, 600 when signed in). Private endpoints need a signed-in session and only ever return your own data. **Stock, ETF, fund and index prices are generated demo data** until a licensed feed is connected. FX rates are real European Central Bank reference rates. Real crypto prices (CoinGecko) appear in the Markets app only; their terms do not allow redistribution here. Every response says where its data came from and when.',
       license: { name: 'MIT (code)', url: 'https://github.com/povolom/Markets-by-MP/blob/main/LICENSE' },
     },
     servers: [{ url: new URL(c.req.url).origin }],

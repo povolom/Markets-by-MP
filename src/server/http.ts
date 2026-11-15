@@ -1,7 +1,7 @@
 // Structured errors, pagination and small helpers used by every route.
 import type { Context } from 'hono';
 
-export type ErrorCode = 'bad_request' | 'unauthorized' | 'forbidden' | 'not_found' | 'conflict' | 'rate_limited' | 'unavailable' | 'upstream_error' | 'not_permitted' | 'internal';
+export type ErrorCode = 'not_licensed' | 'bad_request' | 'unauthorized' | 'forbidden' | 'not_found' | 'conflict' | 'rate_limited' | 'unavailable' | 'upstream_error' | 'not_permitted' | 'internal';
 
 export class ApiError extends Error {
   constructor(public status: number, public code: ErrorCode, message: string, public details?: unknown, public retryAfter?: number) { super(message); }

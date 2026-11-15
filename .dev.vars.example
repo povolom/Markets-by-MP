@@ -4,3 +4,7 @@ BETTER_AUTH_URL=http://localhost:5173
 ENVIRONMENT=development
 # YAHOO_RESEARCH=enabled   # isolated research adapter; never used for public display or the API
 # EMAIL_PROVIDER=          # not configured yet: verification and password-reset emails are unavailable
+# Optional: free CoinGecko Demo key for a higher crypto rate limit
+# COINGECKO_API_KEY=
+# Optional: demo data for everything, no network
+# MARKET_DATA=offline

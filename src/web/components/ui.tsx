@@ -62,8 +62,13 @@ export function Spark({ values, w = 96, h = 30 }: { values: (string | number)[];
   return <svg className={`spark ${dir}`} width={w} height={h} viewBox={`0 0 ${w} ${h}`} role="img" aria-label={`30-day trend: ${dir === 'up' ? 'higher' : dir === 'down' ? 'lower' : 'flat'} (${signedPct(((v[v.length - 1] / v[0]) - 1) * 100)})`}><path d={d} /></svg>;
 }
 
-export function Ticker({ symbol }: { symbol: string }) {
-  return <span className="tick" aria-hidden>{symbol.replace(/[-.].*/, '').slice(0, 4)}</span>;
+/** A lettered mark with a stable hue per ticker, so lists are easy to scan without third-party logos. */
+export function Ticker({ symbol, size }: { symbol: string; size?: number }) {
+  const base = symbol.replace(/[-.].*/, '');
+  let x = 0x811c9dc5; for (let i = 0; i < base.length; i++) { x ^= base.charCodeAt(i); x = Math.imul(x, 0x01000193); }
+  const h = Math.round(((x >>> 0) * 0.618033988749895) % 1 * 360);
+  const text = base.length > 4 ? base.slice(0, 3) : base;
+  return <span className="tick" aria-hidden style={{ ['--h' as any]: h, ...(size ? { width: size, height: size, fontSize: size * 0.3 } : {}) }} data-len={text.length}>{text}</span>;
 }
 
 export function AssetCell({ inst, to = true }: { inst: { id: string; symbol: string; name: string; assetClass?: string; exchange?: string } | null | undefined; to?: boolean }) {
@@ -76,9 +81,18 @@ export function Price({ value, currency }: { value: string | null | undefined; c
   return <span className="num">{priceFmt(value)}{currency && <span className="faint"> {currency}</span>}</span>;
 }
 
-export function DataBadge({ meta }: { meta?: { provenance?: string; observedAt?: string | null } | null }) {
+const SOURCES: Record<string, { label: string; href: string }> = {
+  coingecko: { label: 'Data provided by CoinGecko', href: 'https://www.coingecko.com/' },
+  ecb: { label: 'ECB reference rate', href: 'https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/html/index.en.html' },
+};
+/** Where a value came from and how fresh it is. Demo data is always labelled; real sources are credited. */
+export function DataBadge({ meta }: { meta?: { provider?: string; provenance?: string; observedAt?: string | null } | null }) {
   if (!meta) return null;
-  return <span className="row" style={{ gap: 6 }}>{meta.provenance === 'demo' && <span className="badge demo" title="Generated demo data, not real market prices">Demo data</span>}<span className="faint">{meta.observedAt ? `As of ${timeAgo(meta.observedAt)}` : 'Time unknown'}</span></span>;
+  const src = meta.provider ? SOURCES[meta.provider] : undefined;
+  return <span className="row data-badge" style={{ gap: 8 }}>
+    {meta.provenance === 'demo' ? <span className="badge demo" title="Generated demo data, not real market prices">Demo data</span> : src ? <a className="badge live" href={src.href} target="_blank" rel="noreferrer"><i aria-hidden />{src.label}</a> : <span className="badge live"><i aria-hidden />Live data</span>}
+    <span className="faint">{meta.observedAt ? `As of ${timeAgo(meta.observedAt)}` : 'Time unknown'}</span>
+  </span>;
 }
 
 export function ClassLabel({ c }: { c: string }) { return <span className="chip">{CLASS_LABEL[c] ?? c}</span>; }
@@ -100,7 +114,7 @@ export function Empty({ title, children, action }: { title: string; children?: R
   return <div className="empty"><h3>{title}</h3>{children && <p>{children}</p>}{action}</div>;
 }
 
-export function Dialog({ title, onClose, children, footer, wide }: { title: string; onClose: () => void; children: ReactNode; footer?: ReactNode; wide?: boolean }) {
+export function Dialog({ title, onClose, children, footer, wide, bare }: { title: string; onClose: () => void; children: ReactNode; footer?: ReactNode; wide?: boolean; bare?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
@@ -112,8 +126,8 @@ export function Dialog({ title, onClose, children, footer, wide }: { title: stri
   }, [onClose]);
   return (
     <div className="overlay" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className={`dialog ${wide ? 'wide' : ''}`} role="dialog" aria-modal="true" aria-label={title} ref={ref}>
-        <div className="dialog-head"><h2>{title}</h2><button className="icon-btn" onClick={onClose} aria-label="Close"><Icon name="close" /></button></div>
+      <div className={`dialog ${wide ? 'wide' : ''} ${bare ? 'bare' : ''}`} role="dialog" aria-modal="true" aria-label={title} ref={ref}>
+        {bare ? <h2 className="sr-only">{title}</h2> : <div className="dialog-head"><h2>{title}</h2><button className="icon-btn" onClick={onClose} aria-label="Close"><Icon name="close" /></button></div>}
         <div className="dialog-body">{children}</div>
         {footer && <div className="dialog-foot">{footer}</div>}
       </div>

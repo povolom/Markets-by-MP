@@ -8,6 +8,8 @@ const HOURS: Record<string, Hours> = {
   XNAS: { tz: 'America/New_York', pre: [4, 0], open: [9, 30], close: [16, 0], post: [20, 0] },
   XNYS: { tz: 'America/New_York', pre: [4, 0], open: [9, 30], close: [16, 0], post: [20, 0] },
   ARCX: { tz: 'America/New_York', pre: [4, 0], open: [9, 30], close: [16, 0], post: [20, 0] },
+  XASE: { tz: 'America/New_York', pre: [4, 0], open: [9, 30], close: [16, 0], post: [20, 0] },
+  BATS: { tz: 'America/New_York', pre: [4, 0], open: [9, 30], close: [16, 0], post: [20, 0] },
   XTSE: { tz: 'America/Toronto', open: [9, 30], close: [16, 0] },
   FUND: { tz: 'America/Toronto', open: [9, 30], close: [16, 0] },
   INDEX: { tz: 'America/New_York', open: [9, 30], close: [16, 0] },

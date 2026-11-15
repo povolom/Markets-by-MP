@@ -4,7 +4,7 @@ import { addUser, createTestDb } from './d1-shim';
 import { memoryLimit } from '../src/server/middleware';
 
 const db = createTestDb();
-const env = { DB: db, BETTER_AUTH_SECRET: 'x'.repeat(40), BETTER_AUTH_URL: 'http://localhost', ENVIRONMENT: 'test' };
+const env = { DB: db, BETTER_AUTH_SECRET: 'x'.repeat(40), BETTER_AUTH_URL: 'http://localhost', ENVIRONMENT: 'test', MARKET_DATA: 'offline' };
 // Tests resolve the session from headers; production uses Better Auth (src/worker.ts).
 const { app } = createApi(async c => { const u = c.req.header('x-test-user'); return u ? { userId: u, isAnonymous: c.req.header('x-test-guest') === '1' } : null; });
 
@@ -160,7 +160,7 @@ describe('search', () => {
     expect((await top('google'))[0]).toBe('xnas.googl');
     expect((await top('royal bank'))[0]).toBe('xtse.ry');
     expect((await top('td.to'))[0]).toBe('xtse.td');
-    expect((await top('walmart'))[0]).toBe('xnys.wmt');
+    expect((await top('walmart'))[0]).toBe('xnas.wmt');
     expect((await top('nvidea'))[0]).toBe('xnas.nvda');
     expect((await top('cocacola'))).toContain('xnys.ko');
     expect((await top('bitcoin'))[0]).toBe('crypto.btc-usd');

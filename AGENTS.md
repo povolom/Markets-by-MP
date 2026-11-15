@@ -4,7 +4,7 @@ Markets by MP is an investing platform plus the Markets API. One Cloudflare Work
 
 - **No trading, money movement or investment recommendations.** Plans are notes, not orders. Use "Your rule matched" and "Review this asset", never buy signals, confidence scores or rebound promises.
 - **Never present demo data as real.** Every market-data response carries `meta.provenance`, and the UI labels demo data where it appears. Never substitute fictional data when a provider fails (return `502`). Never fill a real account with made-up holdings; demo data is seeded only for guest sessions.
-- **Data rights.** Only a provider whose `rights.publicDisplay` and `rights.apiRedistribution` allow it may serve public responses. The Yahoo research adapter stays isolated and off. Track rights per use in `ProviderInfo`.
+- **Data rights.** The app may show data from a provider whose `rights.publicDisplay` allows it; the public API (outside clients, see `audienceOf`) only serves providers whose `rights.apiRedistribution` allows it. Credit sources where their terms ask ("Data provided by CoinGecko"). The Yahoo research adapter stays isolated and off. Track rights per use in `ProviderInfo`.
 - **Money is decimal.** Use `src/domain/decimal.ts` (big.js) for authoritative numbers, transport decimals as strings, and use `null` (never `0`) for unknown values.
 - **Every private query is scoped to the caller's user ID.** IDs from another account must return 404. Add an API test for any new private endpoint.
 - **Tests.** Add a test in `tests/` for every calculation or API behaviour change. `npm test` and `npm run typecheck` must pass before committing.

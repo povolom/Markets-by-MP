@@ -57,12 +57,20 @@ export const sameOrigin = createMiddleware<AppEnv>(async (c, next) => {
   await next();
 });
 
+/** Who a public request is for: the Markets app itself (same-origin browser requests or a signed-in session) or an outside API client.
+ * Browsers set Sec-Fetch-Site and pages can't override it. Providers whose terms allow display but not redistribution are only served to the app. */
+export function audienceOf(c: { req: { header(n: string): string | undefined }; get(k: 'userId'): string | null }): 'app' | 'api' {
+  if (c.get('userId')) return 'app';
+  return c.req.header('sec-fetch-site') === 'same-origin' ? 'app' : 'api';
+}
+
 /** Edge cache for public GETs (Cache API). Respects each provider's caching rights via max-age. */
 export function edgeCache(maxAge: number) {
   return createMiddleware<AppEnv>(async (c, next) => {
     const cache = (globalThis as any).caches?.default as Cache | undefined;
     if (!cache || c.req.method !== 'GET' || c.get('userId')) { await next(); return; }
-    const key = new Request(c.req.url, { method: 'GET' });
+    // The app and outside API clients can see different data (some providers allow display but not redistribution).
+    const key = new Request(`${c.req.url}${c.req.url.includes('?') ? '&' : '?'}__aud=${audienceOf(c)}`, { method: 'GET' });
     const hit = await cache.match(key);
     if (hit) { const r = new Response(hit.body, hit); r.headers.set('X-Cache', 'HIT'); return r; }
     await next();

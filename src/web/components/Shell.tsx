@@ -1,8 +1,8 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { api, authClient, useApi } from '../lib/api';
 import { Link, navigate, useLocation } from '../lib/router';
-import { CLASS_LABEL } from '../lib/format';
-import { Dialog, ErrorState, Icon, Ticker, Wordmark, useToast } from './ui';
+import { AssetRowBody, NoMatches, useAssetSearch } from './AssetSearch';
+import { Dialog, ErrorState, Icon, Wordmark, useToast } from './ui';
 
 export interface Me { id: string; email: string | null; isGuest: boolean; isDemo: boolean; displayName: string; baseCurrency: string; interests: string[]; preferences: Record<string, any>; onboarded: boolean }
 const MeCtx = createContext<{ me: Me | null; reload: () => void }>({ me: null, reload: () => {} });
@@ -39,17 +39,21 @@ export function startDemo(toast: (m: string, k?: 'ok' | 'err') => void) {
 function SearchDialog({ onClose }: { onClose: () => void }) {
   const [q, setQ] = useState('');
   const [sel, setSel] = useState(0);
-  const { data } = useApi<{ data: any[] }>(`/assets/search?q=${encodeURIComponent(q)}&limit=12`, [q]);
-  const items = data?.data ?? [];
+  const { items, qmap, debounced, loading } = useAssetSearch(q, { limit: 10 });
   const go = (id: string) => { onClose(); navigate(`/assets/${id}`); };
   return (
-    <Dialog title="Search" onClose={onClose}>
-      <input className="input" autoFocus placeholder="Search stocks, ETFs, crypto, indexes…" value={q} aria-label="Search instruments" aria-controls="search-results" aria-activedescendant={items[sel] ? `sr-${items[sel].id}` : undefined}
-        onChange={e => { setQ(e.target.value); setSel(0); }}
-        onKeyDown={e => { if (e.key === 'ArrowDown') { e.preventDefault(); setSel(s => Math.min(items.length - 1, s + 1)); } if (e.key === 'ArrowUp') { e.preventDefault(); setSel(s => Math.max(0, s - 1)); } if (e.key === 'Enter' && items[sel]) go(items[sel].id); }} />
-      <ul className="search-results" id="search-results" role="listbox" aria-label="Results">
-        {items.map((i, n) => <li key={i.id} id={`sr-${i.id}`} role="option" aria-selected={n === sel}><Link to={`/assets/${i.id}`} onClick={onClose}><Ticker symbol={i.symbol} /><span style={{ flex: 1, minWidth: 0 }}><b>{i.symbol}</b> <span className="muted small">{i.name}</span></span><span className="chip">{CLASS_LABEL[i.assetClass]}</span><span className="faint">{i.exchange}</span></Link></li>)}
-        {!items.length && <li className="faint" style={{ padding: 10 }}>No matches in Markets' coverage.</li>}
+    <Dialog title="Search" onClose={onClose} bare>
+      <div className="search-box big">
+        <Icon name="discover" size={19} />
+        <input autoFocus placeholder="Search stocks, ETFs, crypto and currencies" value={q} aria-label="Search assets" aria-controls="search-results" role="combobox" aria-expanded aria-activedescendant={items[sel] ? `sr-${items[sel].id}` : undefined} autoComplete="off" spellCheck={false}
+          onChange={e => { setQ(e.target.value); setSel(0); }}
+          onKeyDown={e => { if (e.key === 'ArrowDown') { e.preventDefault(); setSel(s => Math.min(items.length - 1, s + 1)); } if (e.key === 'ArrowUp') { e.preventDefault(); setSel(s => Math.max(0, s - 1)); } if (e.key === 'Enter' && items[sel]) go(items[sel].id); }} />
+        <kbd className="hide-m">esc</kbd>
+      </div>
+      <ul className="results" id="search-results" role="listbox" aria-label="Results">
+        <li className="results-cap" role="presentation">{debounced ? 'Best matches' : 'Popular'}</li>
+        {items.map((i, n) => <li key={i.id} id={`sr-${i.id}`} role="option" aria-selected={n === sel}><Link to={`/assets/${i.id}`} onClick={onClose} className={`result ${n === sel ? 'active' : ''}`} onMouseEnter={() => setSel(n)}><AssetRowBody inst={i} quote={qmap.get(i.id)} /></Link></li>)}
+        {!loading && debounced && !items.length && <li role="presentation"><NoMatches q={debounced} /></li>}
       </ul>
     </Dialog>
   );
@@ -105,7 +109,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           <nav>{PRIMARY.map(n => <Link key={n.to} to={n.to} className="navlink" aria-current={isActive(n.to) ? 'page' : undefined} title={n.label}><Icon name={n.icon} /><span className="label">{n.label}</span></Link>)}</nav>
           <div className="nav-sep" />
           <nav>{SECONDARY.map(n => <Link key={n.to} to={n.to} className="navlink" aria-current={isActive(n.to) ? 'page' : undefined} title={n.label}><Icon name={n.icon} /><span className="label">{n.label}</span>{n.icon === 'bell' && count > 0 && <span className="count">{count}</span>}</Link>)}</nav>
-          <div className="side-foot faint" style={{ marginTop: 'auto', padding: '0 8px' }}>Press <kbd>⌘K</kbd> to search, <kbd>g</kbd> then a letter to jump.</div>
+          <div className="side-foot stack-sm" style={{ marginTop: 'auto' }}>
+            <p className="side-attrib">Crypto: <a href="https://www.coingecko.com/" target="_blank" rel="noreferrer">data provided by CoinGecko</a>. Currencies: ECB reference rates. Stock prices are demo data.</p>
+            <p className="faint" style={{ padding: '0 8px', fontSize: 12 }}>Press <kbd>⌘K</kbd> to search.</p>
+          </div>
         </aside>
         <div className="main">
           <header className="topbar">
@@ -126,6 +133,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       {more && <Dialog title="More" onClose={() => setMore(false)}>
         <nav className="stack-sm">{[PRIMARY[4], PRIMARY[5], ...SECONDARY].map(n => <Link key={n.to} to={n.to} className="navlink" aria-current={isActive(n.to) ? 'page' : undefined}><Icon name={n.icon} /><span>{n.label}</span>{n.icon === 'bell' && count > 0 && <span className="count">{count}</span>}</Link>)}</nav>
         <button className="btn ghost" onClick={async () => { await authClient.signOut(); toast('Signed out.'); navigate('/'); }}>Sign out</button>
+        <p className="side-attrib">Crypto: <a href="https://www.coingecko.com/" target="_blank" rel="noreferrer">data provided by CoinGecko</a>. Currencies: ECB reference rates. Stock prices are demo data.</p>
       </Dialog>}
       {search && <SearchDialog onClose={() => setSearch(false)} />}
     </MeCtx.Provider>
@@ -145,7 +153,7 @@ export function PublicHeader() {
         <button className="btn ghost sm hide-m" onClick={() => setSearch(true)}><Icon name="discover" size={16} />Search</button>
         <Link to="/developers" className="btn ghost sm hide-m">Developers</Link>
         {session.data ? <Link to="/app" className="btn primary sm">Open app</Link> : <>
-          <Link to="/login" className="btn ghost sm">Log in</Link>
+          <Link to="/login" className="btn ghost sm">Sign in</Link>
           <button className="btn primary sm" onClick={() => startDemo(toast)}>Try the demo</button>
         </>}
       </nav>

@@ -6,7 +6,7 @@ import { authClient } from './lib/api';
 import { RouterProvider, match, useLocation } from './lib/router';
 import { AppShell, PublicHeader } from './components/Shell';
 import { ToastProvider } from './components/ui';
-import { Developers, Forgot, Landing, Login, SignUp } from './pages/public';
+import { Developers, Start } from './pages/public';
 import { Asset, Overview, Watchlists } from './pages/core';
 import { DipRadar, Plans, WhatIf } from './pages/dips';
 import { Portfolio } from './pages/portfolio';
@@ -34,10 +34,11 @@ function AssetRoute({ id }: { id: string }) {
 function Routes() {
   const { path } = useLocation();
   const titled = (t: string) => { document.title = `${t} | Markets by MP`; };
-  if (path === '/') { document.title = 'Markets by MP | Your entire investing world'; return <Landing />; }
-  if (path === '/login') { titled('Log in'); return <Login />; }
-  if (path === '/signup') { titled('Create an account'); return <SignUp />; }
-  if (path === '/forgot' || path === '/reset') { titled('Reset password'); return <Forgot />; }
+  // One front door: the start page, with the sign-in, sign-up and reset panels as states of it.
+  if (path === '/') { document.title = 'Markets by MP | Your entire investing world'; return <Start key="start" mode="login" />; }
+  if (path === '/login') { titled('Sign in'); return <Start key="start" mode="login" />; }
+  if (path === '/signup') { titled('Create an account'); return <Start key="start" mode="signup" />; }
+  if (path === '/forgot' || path === '/reset') { titled('Reset password'); return <Start key="start" mode="reset" />; }
   if (path === '/developers') { titled('Developers'); return <Developers />; }
   const asset = match('/assets/:id', path);
   if (asset) { titled(symbolOf(asset.id) || 'Asset'); return <AssetRoute id={asset.id} />; }

@@ -1,108 +1,42 @@
-import { symbolOf } from '../lib/format';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api, authClient, useApi } from '../lib/api';
 import { Link, navigate, useLocation } from '../lib/router';
 import { dateFmt, priceFmt } from '../lib/format';
 import { PublicHeader, startDemo } from '../components/Shell';
-import { AssetCell, Change, DataBadge, Icon, Spark, Wordmark, useToast } from '../components/ui';
+import { Change, Icon, Spark, Wordmark, useToast } from '../components/ui';
 
 function Footer() {
   return <footer className="footer"><span>Markets by MP · Beta. Built by <a href="https://marcantoniopovolo.com">Marcantonio Povolo</a>. Not investment advice; Markets never places trades or moves money.</span><span className="row"><Link to="/developers">Developers</Link><a href="/api/v1/docs">API reference</a><a href="https://github.com/povolom/Markets-by-MP">Open source</a></span></footer>;
 }
 
-function LiveStrip() {
-  const { data } = useApi<{ data: any }>('/markets/overview');
-  const b = data?.data?.benchmarks ?? [];
+/** Live tiles for the start page. Crypto and FX are real; the S&P 500 is demo data and labelled. */
+function MarketTape() {
+  const ids = ['crypto.btc-usd', 'crypto.eth-usd', 'fx.usdcad', 'index.spx'];
+  const { data } = useApi<{ data: any[] }>(`/quotes?ids=${ids.join(',')}`);
+  const names: Record<string, string> = { 'crypto.btc-usd': 'Bitcoin', 'crypto.eth-usd': 'Ethereum', 'fx.usdcad': 'USD / CAD', 'index.spx': 'S&P 500' };
+  const by = new Map((data?.data ?? []).map(q => [q.instrumentId, q]));
   return (
-    <div className="card flush">
-      <div className="card-head"><h2>Markets right now</h2><DataBadge meta={data?.data?.meta} /></div>
-      <table className="t responsive"><thead><tr><th>Benchmark</th><th className="r">Last</th><th className="r">Today</th></tr></thead>
-        <tbody>{b.map((q: any) => <tr key={q.instrumentId}><td>{symbolOf(q.instrumentId)}</td><td className="r num">{priceFmt(q.price)}</td><td className="r"><Change pct={q.changePct} /></td></tr>)}</tbody></table>
+    <div className="tape" aria-label="Markets right now">
+      {ids.map(id => {
+        const q = by.get(id);
+        return (
+          <Link key={id} to={`/assets/${id}`} className="tape-item">
+            <span className="tape-top"><span>{names[id]}</span>{q?.meta?.provenance === 'demo' ? <span className="tape-tag demo">Demo</span> : q ? <span className="tape-tag live"><i />Live</span> : null}</span>
+            <span className="tape-price num">{q ? priceFmt(q.price) : <span className="skeleton" style={{ width: 90, height: 20, display: 'block' }} />}</span>
+            {q ? <Change pct={q.changePct} /> : <span className="skeleton" style={{ width: 50, height: 12, display: 'block' }} />}
+          </Link>
+        );
+      })}
     </div>
   );
 }
 
-export function Landing() {
-  const toast = useToast();
-  const dips = useApi<{ data: any[] }>('/screeners/dips?windowDays=30&minDropPct=6&sort=drop');
-  return (
-    <>
-      <PublicHeader />
-      <section className="hero">
-        <img src="/icons/icon-192.png" alt="" className="hero-logo" width={72} height={72} />
-        <div className="row" style={{ justifyContent: 'center', marginBottom: 18 }}><span className="badge outline">Beta</span><span className="faint">Demo data until licensed market data is connected</span></div>
-        <h1>Your entire investing world.</h1>
-        <p className="tagline">Research. Track. Discover. Plan.</p>
-        <div className="ctas"><button className="btn primary" onClick={() => startDemo(toast)}>Explore the demo</button><Link to="/signup" className="btn">Create a free account</Link></div>
-        <p className="faint" style={{ marginTop: 12 }}>No bank connection needed. Watchlists work without any investments.</p>
-      </section>
-      <section className="section" style={{ paddingTop: 10 }}>
-        <div className="flow" aria-label="How Markets connects">{['Spot a move', 'Understand the context', 'See your portfolio impact', 'Save a plan or alert', 'Review later'].map((s, i, a) => <span key={s} className="row" style={{ gap: 8 }}><span className="step">{s}</span>{i < a.length - 1 && <span className="arrow" aria-hidden>→</span>}</span>)}</div>
-      </section>
-      <section className="section grid-2">
-        <div className="card flush">
-          <div className="card-head"><div><h2>Dip Radar</h2><p className="faint">More than 6% below their 30-day closing high</p></div><span className="badge demo">Demo data</span></div>
-          <table className="t responsive"><thead><tr><th>Asset</th><th className="r">From 30D high</th><th className="r">Today</th></tr></thead>
-            <tbody>{(dips.data?.data ?? []).slice(0, 5).map(r => <tr key={r.instrumentId}><td><AssetCell inst={r.instrument} /></td><td className="r"><Change pct={r.dropPct} /></td><td className="r"><Change pct={r.quote.changePct} /></td></tr>)}</tbody></table>
-          <p className="faint" style={{ padding: '10px 18px 16px' }}>A lower price doesn't establish better value. Dip Radar tells you when your own rules match.</p>
-        </div>
-        <LiveStrip />
-      </section>
-      <section className="section">
-        <div className="feature-grid">
-          {[
-            ['Watchlists', 'Follow anything', 'Multiple lists with live quotes, sparklines and alerts, synced across your devices.'],
-            ['Portfolio', 'Track honestly', 'Manual entry or CSV import, CAD and USD, dividends, splits and fees, with gains separated from contributions.'],
-            ['Dip Radar', 'Rules, not hunches', 'Define what a dip means to you. Markets checks it, explains it, and never calls a fall a bargain.'],
-            ['What-If', 'Try before you record', 'See how a purchase changes weights, cash, currency and concentration before you do anything.'],
-            ['Portfolio X-Ray', 'See through your funds', 'Look-through company exposure, ETF overlap and sector, country and currency concentration.'],
-            ['Markets API', 'Built in the open', 'The same versioned API powers the app. Public market-data endpoints are keyless within fair limits.'],
-          ].map(([k, t, d]) => <article key={k} className="feature"><span className="k">{k}</span><h3>{t}</h3><p className="muted small">{d}</p></article>)}
-        </div>
-      </section>
-      <section className="section">
-        <div className="notice"><Icon name="info" /><span>Markets is a research and tracking tool. Plans are notes to yourself, not orders, and Markets never buys, sells or moves money. All prices in the beta are generated demo data, clearly labelled wherever they appear.</span></div>
-      </section>
-      <Footer />
-    </>
-  );
-}
+type Mode = 'login' | 'signup' | 'reset';
 
-/** Sign-in and sign-up layout: the brand on one side, the form on the other (stacked on phones). */
-function AuthFrame({ title, children, sub }: { title: string; sub?: string; children: React.ReactNode }) {
-  const pts = [38, 42, 40, 47, 45, 52, 50, 58, 55, 61, 59, 66, 63, 70, 74, 71, 78];
-  const d = pts.map((v, i) => `${i ? 'L' : 'M'}${(i / (pts.length - 1)) * 300},${100 - v}`).join('');
-  return (
-    <div className="auth-split">
-      <aside className="auth-brand" aria-hidden>
-        <Wordmark />
-        <div className="stack">
-          <h2 className="auth-tagline">Your entire investing world.</h2>
-          <p className="muted">Research. Track. Discover. Plan.</p>
-          <svg viewBox="0 0 300 100" className="auth-chart"><defs><linearGradient id="ag" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="var(--accent)" stopOpacity=".22" /><stop offset="1" stopColor="var(--accent)" stopOpacity="0" /></linearGradient></defs><path d={`${d}L300,100L0,100Z`} fill="url(#ag)" /><path d={d} fill="none" stroke="var(--accent)" strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round" /></svg>
-          <ul className="auth-points">
-            <li><Icon name="dip" size={16} />Dip Radar tells you when your own rules match</li>
-            <li><Icon name="xray" size={16} />See through your ETFs with Portfolio X-Ray</li>
-            <li><Icon name="whatif" size={16} />Try a purchase in What-If before you record it</li>
-          </ul>
-        </div>
-        <p className="faint">Beta with labelled demo data. Markets never trades or moves money.</p>
-      </aside>
-      <main className="auth-main" id="main">
-        <div className="auth-card">
-          <div className="auth-mobile-logo"><Wordmark /></div>
-          <div><h1>{title}</h1>{sub && <p className="muted" style={{ marginTop: 8 }}>{sub}</p>}</div>
-          {children}
-        </div>
-      </main>
-    </div>
-  );
-}
-
-function PasswordField({ value, onChange, autoComplete, hint }: { value: string; onChange: (v: string) => void; autoComplete: string; hint?: string }) {
+function PasswordField({ value, onChange, autoComplete, hint, label = 'Password' }: { value: string; onChange: (v: string) => void; autoComplete: string; hint?: string; label?: string }) {
   const [show, setShow] = useState(false);
   return (
-    <label className="field">Password
+    <label className="field">{label}
       <span className="pw-wrap"><input className="input" type={show ? 'text' : 'password'} required minLength={autoComplete === 'new-password' ? 10 : undefined} autoComplete={autoComplete} value={value} onChange={e => onChange(e.target.value)} aria-describedby={hint ? 'pw-hint' : undefined} />
         <button type="button" className="pw-toggle" onClick={() => setShow(x => !x)} aria-label={show ? 'Hide password' : 'Show password'}>{show ? 'Hide' : 'Show'}</button></span>
       {hint && <span id="pw-hint" className="faint">{hint}</span>}
@@ -110,12 +44,33 @@ function PasswordField({ value, onChange, autoComplete, hint }: { value: string;
   );
 }
 
-export function SignUp() {
-  const session = authClient.useSession();
+function LoginForm({ onMode }: { onMode: (m: Mode) => void }) {
+  const { search } = useLocation();
+  const [f, set] = useState({ email: '', password: '' });
+  const [busy, setBusy] = useState(false); const [err, setErr] = useState('');
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault(); setBusy(true); setErr('');
+    const r = await authClient.signIn.email({ email: f.email, password: f.password, rememberMe: true });
+    setBusy(false);
+    if (r.error) { setErr(r.error.status === 401 ? 'That email and password don\'t match an account.' : (r.error.message ?? 'Could not sign in.')); return; }
+    const next = search.get('next') ?? '';
+    navigate(/^\/(app|assets)(\/|$|\?)/.test(next) ? next : '/app');
+  };
+  return (
+    <form className="stack" onSubmit={submit}>
+      <label className="field">Email<input className="input" type="email" required autoComplete="email" value={f.email} onChange={e => set({ ...f, email: e.target.value })} /></label>
+      <PasswordField value={f.password} onChange={v => set({ ...f, password: v })} autoComplete="current-password" />
+      {err && <p className="notice warn" role="alert">{err}</p>}
+      <button className="btn primary block lg" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
+      <button type="button" className="linkish" onClick={() => onMode('reset')}>Forgot your password?</button>
+    </form>
+  );
+}
+
+function SignUpForm({ guest }: { guest: boolean }) {
   const toast = useToast();
   const [f, set] = useState({ name: '', email: '', password: '' });
   const [busy, setBusy] = useState(false); const [err, setErr] = useState('');
-  const guest = Boolean((session.data?.user as any)?.isAnonymous);
   const submit = async (e: React.FormEvent) => {
     e.preventDefault(); setBusy(true); setErr('');
     const r = await authClient.signUp.email({ name: f.name || f.email.split('@')[0], email: f.email, password: f.password });
@@ -125,55 +80,119 @@ export function SignUp() {
     navigate('/app/welcome');
   };
   return (
-    <AuthFrame title="Create your account" sub={guest ? 'Your demo watchlists, rules and plans move to your new account. The demo portfolio stays behind, because its holdings are made up.' : 'Free. No bank connection needed.'}>
-      <form className="stack" onSubmit={submit}>
-        <label className="field">Name<input className="input" autoComplete="name" value={f.name} onChange={e => set({ ...f, name: e.target.value })} /></label>
-        <label className="field">Email<input className="input" type="email" required autoComplete="email" value={f.email} onChange={e => set({ ...f, email: e.target.value })} /></label>
-        <PasswordField value={f.password} onChange={v => set({ ...f, password: v })} autoComplete="new-password" hint={f.password && f.password.length < 10 ? `${10 - f.password.length} more characters needed.` : 'At least 10 characters.'} />
-        {err && <p className="notice warn" role="alert">{err}</p>}
-        <button className="btn primary block lg" disabled={busy || f.password.length < 10}>{busy ? 'Creating your account…' : 'Create account'}</button>
-      </form>
-      <p className="muted small">Already have an account? <Link to="/login">Log in</Link></p>
-      <p className="faint">Email verification isn't available yet in the beta, so please use an address you can get to later.</p>
-    </AuthFrame>
+    <form className="stack" onSubmit={submit}>
+      {guest && <p className="notice green">Your demo watchlists, rules and plans move to your new account. The demo portfolio stays behind, because its holdings are made up.</p>}
+      <label className="field">Name<input className="input" autoComplete="name" value={f.name} onChange={e => set({ ...f, name: e.target.value })} /></label>
+      <label className="field">Email<input className="input" type="email" required autoComplete="email" value={f.email} onChange={e => set({ ...f, email: e.target.value })} /></label>
+      <PasswordField value={f.password} onChange={v => set({ ...f, password: v })} autoComplete="new-password" hint={f.password && f.password.length < 10 ? `${10 - f.password.length} more characters needed.` : 'At least 10 characters.'} />
+      {err && <p className="notice warn" role="alert">{err}</p>}
+      <button className="btn primary block lg" disabled={busy || f.password.length < 10}>{busy ? 'Creating your account…' : 'Create free account'}</button>
+      <p className="faint">Email verification isn't available in the beta yet, so use an address you can get to later.</p>
+    </form>
   );
 }
 
-export function Login() {
-  const { search } = useLocation(); const toast = useToast();
-  const [f, set] = useState({ email: '', password: '' });
-  const [busy, setBusy] = useState(false); const [err, setErr] = useState('');
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault(); setBusy(true); setErr('');
-    const r = await authClient.signIn.email({ email: f.email, password: f.password, rememberMe: true });
-    setBusy(false);
-    if (r.error) { setErr(r.error.status === 401 ? 'That email and password don\'t match an account.' : (r.error.message ?? 'Could not log in.')); return; }
-    const next = search.get('next') ?? '';
-    navigate(/^\/(app|assets)(\/|$|\?)/.test(next) ? next : '/app');
-  };
+/** The one front door: what Markets is, live prices, and a panel to try the demo, sign in or sign up. */
+export function Start({ mode: initial = 'login' }: { mode?: Mode }) {
+  const toast = useToast();
+  const session = authClient.useSession();
+  const [mode, setModeState] = useState<Mode>(initial);
+  useEffect(() => setModeState(initial), [initial]);
+  const [demoBusy, setDemoBusy] = useState(false);
+  const setMode = (m: Mode) => { setModeState(m); navigate(m === 'signup' ? '/signup' : m === 'reset' ? '/forgot' : '/login', { replace: true }); };
+  const user = session.data?.user as any;
+  const guest = Boolean(user?.isAnonymous);
+  const signedIn = Boolean(user) && !guest;
+  const demo = async () => { setDemoBusy(true); await startDemo(toast); setDemoBusy(false); };
   return (
-    <AuthFrame title="Welcome back" sub="Log in to your watchlists, portfolios and rules.">
-      <form className="stack" onSubmit={submit}>
-        <label className="field">Email<input className="input" type="email" required autoComplete="email" value={f.email} onChange={e => set({ ...f, email: e.target.value })} /></label>
-        <PasswordField value={f.password} onChange={v => set({ ...f, password: v })} autoComplete="current-password" />
-        {err && <p className="notice warn" role="alert">{err}</p>}
-        <button className="btn primary block lg" disabled={busy}>{busy ? 'Logging in…' : 'Log in'}</button>
-      </form>
-      <div className="row between small"><Link to="/signup">Create an account</Link><Link to="/forgot">Forgot password?</Link></div>
-      <div className="or"><span>or</span></div>
-      <button className="btn block" onClick={() => startDemo(toast)}>Explore the demo, no account needed</button>
-    </AuthFrame>
-  );
-}
+    <div className="start">
+      <div className="start-glow" aria-hidden />
+      <header className="start-head">
+        <Wordmark beta />
+        <nav aria-label="Site" className="row">
+          <Link to="/developers" className="btn ghost sm hide-m">Developers</Link>
+          <a href="https://github.com/povolom/Markets-by-MP" className="btn ghost sm hide-m">Open source</a>
+          {signedIn && <Link to="/app" className="btn primary sm">Open Markets</Link>}
+        </nav>
+      </header>
 
-export function Forgot() {
-  const caps = useApi<any>('/status');
-  void caps;
-  return (
-    <AuthFrame title="Reset your password">
-      <div className="notice warn"><Icon name="info" /><span>Password reset by email isn't available yet: the beta doesn't have an email provider connected, so reset links can't be delivered. If you're locked out, contact <a href="https://marcantoniopovolo.com/contact">Marcantonio</a>.</span></div>
-      <Link to="/login" className="btn">Back to log in</Link>
-    </AuthFrame>
+      <main className="start-hero" id="main">
+        <section className="start-copy start-intro">
+          <span className="pill"><i aria-hidden />Free public beta</span>
+          <h1>Your entire investing world.</h1>
+          <p className="lede">Research, track, discover and plan in one place. Watchlists, portfolio tracking, Dip Radar, Buy Plans and Portfolio X-Ray, built around rules you set.</p>
+        </section>
+        <section className="start-copy start-more" aria-label="Highlights">
+          <MarketTape />
+          <ul className="start-points">
+            <li><Icon name="discover" size={17} /><span><b>12,000+ assets.</b> Every US stock and ETF, major TSX listings, top crypto and currencies.</span></li>
+            <li><Icon name="dip" size={17} /><span><b>Dip Radar.</b> You define what a dip is; Markets tells you when your rule matches.</span></li>
+            <li><Icon name="xray" size={17} /><span><b>Portfolio X-Ray.</b> See through your ETFs to what you actually own.</span></li>
+          </ul>
+        </section>
+
+        <section className="start-panel" aria-label={signedIn ? 'Your account' : 'Get started'}>
+          {signedIn ? (
+            <div className="stack">
+              <div className="stack-sm"><span className="faint">Signed in as {user?.email}</span><h2 className="panel-title">Welcome back{user?.name ? `, ${String(user.name).split(' ')[0]}` : ''}.</h2></div>
+              <Link to="/app" className="btn primary block xl">Open Markets <span aria-hidden>→</span></Link>
+              <button className="btn ghost block" onClick={async () => { await authClient.signOut(); toast('Signed out.'); }}>Sign out</button>
+            </div>
+          ) : (
+            <div className="stack">
+              <div className="stack-sm">
+                <h2 className="panel-title">{mode === 'reset' ? 'Reset your password' : 'Get started'}</h2>
+                {mode !== 'reset' && <p className="muted small">Explore everything with a sample portfolio, or sign in to your own.</p>}
+              </div>
+              {mode !== 'reset' && <>
+                <button className="btn demo-btn block xl" onClick={demo} disabled={demoBusy}>
+                  <span className="demo-ico" aria-hidden><Icon name="portfolio" size={18} /></span>
+                  <span className="demo-txt"><b>{demoBusy ? 'Opening the demo…' : guest ? 'Continue the demo' : 'Explore the demo'}</b><small>No account needed</small></span>
+                  <span aria-hidden className="demo-arrow">→</span>
+                </button>
+                <div className="or"><span>or use your account</span></div>
+                <div className="seg full" role="tablist" aria-label="Account">
+                  <button role="tab" aria-selected={mode === 'login'} onClick={() => setMode('login')}>Sign in</button>
+                  <button role="tab" aria-selected={mode === 'signup'} onClick={() => setMode('signup')}>Create account</button>
+                </div>
+                {mode === 'login' ? <LoginForm onMode={setMode} /> : <SignUpForm guest={guest} />}
+              </>}
+              {mode === 'reset' && <>
+                <div className="notice warn"><Icon name="info" /><span>Password reset by email isn't available yet: the beta has no email provider connected, so reset links can't be delivered. If you're locked out, contact <a href="https://marcantoniopovolo.com/contact">Marcantonio</a>.</span></div>
+                <button className="btn block" onClick={() => setMode('login')}>Back to sign in</button>
+              </>}
+            </div>
+          )}
+          <p className="panel-foot faint">Markets never places trades or moves money. Not investment advice.</p>
+        </section>
+      </main>
+
+      <section className="section start-features">
+        <div className="section-head"><h2>Everything in one place</h2><p className="muted">Each part connects: spot a move, understand it, see what it does to your portfolio, then save a plan or an alert.</p></div>
+        <div className="feature-grid">
+          {[
+            ['watchlists', 'Watchlists', 'Multiple lists with live quotes and trends, synced across your devices. Add anything by name.'],
+            ['portfolio', 'Portfolio', 'Manual entry or CSV import, CAD and USD, dividends, splits and fees, with gains separated from contributions.'],
+            ['dip', 'Dip Radar', 'Define what a dip means to you. Markets checks it, explains it, and never calls a fall a bargain.'],
+            ['whatif', 'What-If', 'See how a purchase changes weights, cash, currency and concentration before you do anything.'],
+            ['community', 'Community', 'See how other investors build their portfolios. Percentages only, never amounts.'],
+            ['code', 'Markets API', 'The same versioned API powers the app. Public market-data endpoints are keyless within fair limits.'],
+          ].map(([icon, t, d]) => <article key={t} className="feature"><span className="feature-ico"><Icon name={icon} size={18} /></span><h3>{t}</h3><p className="muted small">{d}</p></article>)}
+        </div>
+      </section>
+
+      <section className="section">
+        <div className="sources card">
+          <div className="stack-sm"><h2>Where the numbers come from</h2><p className="muted small">Every price in Markets says where it came from and when.</p></div>
+          <dl className="source-list">
+            <div><dt><span className="tape-tag live"><i />Live</span>Crypto</dt><dd>Real prices from CoinGecko, refreshed every minute. Data provided by CoinGecko.</dd></div>
+            <div><dt><span className="tape-tag live"><i />Live</span>Currencies</dt><dd>European Central Bank reference rates, published each working day.</dd></div>
+            <div><dt><span className="tape-tag demo">Demo</span>Stocks, ETFs, indexes</dt><dd>Generated demo prices, labelled everywhere, until a licensed stock-data feed is connected. Free stock feeds don't allow showing prices publicly.</dd></div>
+          </dl>
+        </div>
+      </section>
+      <Footer />
+    </div>
   );
 }
 
@@ -189,7 +208,7 @@ export function Developers() {
       <div className="section stack" style={{ maxWidth: 980 }}>
         <div className="stack-sm"><span className="badge outline" style={{ justifySelf: 'start' }}>Markets API · v1 beta</span><h1>Build with the Markets API</h1>
           <p className="muted">The same versioned API that powers the Markets app. Public market-data endpoints need no key. Every response says which provider it came from, when the value was observed, and whether it's demo data.</p></div>
-        <div className="notice warn"><Icon name="info" /><span><b>All market data is currently generated demo data.</b> No licensed production market-data provider is connected yet, so nothing here is a real price. The contract stays the same when one is.</span></div>
+        <div className="notice warn"><Icon name="info" /><span><b>Stock, ETF, fund and index prices are generated demo data</b> until a licensed feed is connected. FX rates are real European Central Bank reference rates. Real crypto prices from CoinGecko appear in the Markets app only, because CoinGecko's terms don't allow redistributing them; the API returns <code>403 not_licensed</code> for crypto.</span></div>
         <div className="grid-2">
           <div className="card stack-sm"><h2>Try it</h2><pre className="code">{curl}</pre><pre className="code">{js}</pre><a className="btn primary" href="/api/v1/docs">Open the interactive reference</a><a className="btn" href="/api/v1/openapi.json">Download the OpenAPI spec</a></div>
           <div className="card stack-sm"><h2>Limits and behaviour</h2>
