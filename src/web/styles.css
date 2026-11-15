@@ -499,3 +499,16 @@ a.locked:hover .locked-tag { color: var(--accent-text); border-color: color-mix(
 .datakeys-form .notice, .datakeys-form .row { grid-column: 1 / -1; }
 .input.mono { font-family: var(--mono); font-size: 14px; }
 @media (max-width: 720px) { .datakeys-form { grid-template-columns: minmax(0, 1fr); } }
+.conn { display: flex; gap: 14px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; padding: 14px 16px; border-radius: 14px; border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border)); background: color-mix(in srgb, var(--accent) 4%, var(--bg)); }
+.conn-main { display: grid; gap: 4px; flex: 1; min-width: 240px; }
+.conn-main .notice { margin-top: 8px; }
+.provider-card { display: grid; gap: 14px; padding: 18px; border-radius: 16px; border: 1px solid var(--border); background: var(--bg); }
+.provider-card.recommended { border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 6%, var(--bg)), var(--bg)); }
+.provider-top { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.provider-top h3 { font-size: 17px; margin-top: 8px; }
+.provider-name { font-weight: 800; letter-spacing: -0.02em; color: var(--text-2); }
+.provider-points { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 14px; color: var(--text-2); }
+.provider-points li { display: flex; gap: 8px; align-items: flex-start; }
+.provider-points svg { color: var(--accent-text); flex: none; margin-top: 3px; }
+.provider-card .btn.primary { justify-self: start; }
+.datakeys-form.single { grid-template-columns: minmax(0, 1fr); max-width: 520px; }

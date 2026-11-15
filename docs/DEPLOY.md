@@ -14,7 +14,7 @@ npm run deploy                                  # vite build, then wrangler depl
 
 `BETTER_AUTH_URL` and `ENVIRONMENT` are plain vars in `wrangler.jsonc`. Never commit `.dev.vars`.
 
-Users' personal data keys are encrypted with `DATA_KEY_SECRET` if set, otherwise `BETTER_AUTH_SECRET` (changing that secret makes saved keys unreadable; users would reconnect). Migration `0004_data_keys.sql` adds the table.
+Users' personal data keys are encrypted with `DATA_KEY_SECRET` if set, otherwise `BETTER_AUTH_SECRET` (changing that secret makes saved keys unreadable; users would reconnect). Migrations `0004_data_keys.sql` and `0005_data_key_meta.sql` add the table.
 
 Optional: a free CoinGecko Demo key raises the crypto rate limit (`npx wrangler secret put COINGECKO_API_KEY`). Without it Markets uses CoinGecko's keyless API with caching. Set `MARKET_DATA=offline` to use demo data for everything (tests do this).
 

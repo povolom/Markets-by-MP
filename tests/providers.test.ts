@@ -21,6 +21,11 @@ beforeAll(() => setFetcher(async url => {
     if (url.includes('/snapshots')) return json({ SOFI: { latestTrade: { t: new Date().toISOString(), p: 21.37 }, dailyBar: { t: new Date().toISOString(), o: 21, h: 21.6, l: 20.9, c: 21.37, v: 1e6 }, prevDailyBar: { t: day(1).toISOString(), c: 21.0 } } });
     if (url.includes('/bars')) return json({ bars: { SOFI: Array.from({ length: 30 }, (_, i) => ({ t: day(40 - i).toISOString(), o: 20, h: 22, l: 19, c: 20 + i / 10, v: 1e6 })) }, next_page_token: null });
   }
+  if (url.includes('eodhd.com')) {
+    if (url.includes('/real-time/')) return json([{ code: 'SHOP.TO', timestamp: Math.floor(Date.now() / 1000) - 900, open: 150, high: 152, low: 149, close: 151.25, volume: 1e6, previousClose: 150, change: 1.25, change_p: 0.83 }, { code: 'GSPC.INDX', timestamp: Math.floor(Date.now() / 1000), open: 6000, high: 6010, low: 5990, close: 6005, volume: 0, previousClose: 6000, change: 5, change_p: 0.08 }]);
+    if (url.includes('/eod/')) return json(Array.from({ length: 30 }, (_, i) => ({ date: day(40 - i).toISOString().slice(0, 10), open: 140, high: 150, low: 139, close: 140 + i / 2, adjusted_close: 139 + i / 2, volume: 1e6 })));
+    if (url.includes('/div/')) return json([{ date: '2026-08-01', paymentDate: '2026-08-15', value: 0.25, currency: 'CAD' }]);
+  }
   if (url.includes('frankfurter')) {
     const rates: Record<string, Record<string, number>> = {};
     for (let i = 10; i >= 1; i--) rates[day(i).toISOString().slice(0, 10)] = { CAD: 1.40 + i / 1000, EUR: 0.9, GBP: 0.78, JPY: 150, AUD: 1.5, CHF: 0.88, MXN: 18, CNY: 7.2, INR: 84 };
@@ -70,7 +75,7 @@ describe('live providers', () => {
     const batch = await get('/api/v1/quotes?ids=xnas.aapl,xnas.sofi,xtse.gsy', true);
     expect(batch.status).toBe(200);
     expect(batch.body.data.map((q: any) => q.locked ?? false)).toEqual([false, true, true]);
-    expect(batch.body.data[2].lockReason).toBe('no_source');
+    expect(batch.body.data[2].lockReason).toBe('needs_key');
   });
   it('returns an error, never demo data, when a real provider fails', async () => {
     failCoinGecko = true;
@@ -114,5 +119,23 @@ describe('personal data keys', () => {
     expect((await get('/api/v1/assets/xnas.sofi/quote', true, 'lee')).status).toBe(403);
     expect((await send('DELETE', '/api/v1/data-keys/alpaca', 'kim')).status).toBe(200);
     expect((await get('/api/v1/assets/xnas.sofi/quote', true, 'kim')).status).toBe(403);
+  });
+});
+
+describe('one key for every exchange (EODHD)', () => {
+  beforeAll(() => { addUser(env.DB as any, 'ana'); });
+  it('unlocks Canadian listings and indexes with real prices and dividends', async () => {
+    expect((await get('/api/v1/assets/xtse.gsy/quote', true, 'ana')).status).toBe(403);
+    const put = await send('PUT', '/api/v1/data-keys/eodhd', 'ana', { token: 'TESTTOKEN-PAID-12345678' });
+    expect(put.status).toBe(200);
+    expect(put.body.data).toMatchObject({ provider: 'eodhd', hint: '5678', meta: { dailyLimit: 100000 } });
+    const shop = await get('/api/v1/assets/xtse.shop/quote', true, 'ana');
+    expect(shop.body.data).toMatchObject({ price: '151.25', previousClose: '150.00', currency: 'CAD', meta: { provider: 'eodhd' } });
+    const spx = await get('/api/v1/assets/index.spx/quote', true, 'ana');
+    expect(spx.body.data.meta.provider).toBe('eodhd');
+    const divs = await get('/api/v1/assets/xtse.shop/dividends', true, 'ana');
+    expect(divs.body.data[0]).toMatchObject({ exDate: '2026-08-01', amount: '0.25', status: 'paid' });
+    const hist = await get('/api/v1/assets/xtse.shop/history?range=3M', true, 'ana');
+    expect(hist.body.data.at(-1)).toMatchObject({ close: '154.5', adjClose: '153.5' });
   });
 });

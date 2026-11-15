@@ -106,7 +106,7 @@ function useUnlock(reason?: string) {
   const user = s.data?.user as { isAnonymous?: boolean } | undefined;
   if (reason === 'no_source') return { to: null, label: 'No free source yet' };
   if (!user || user.isAnonymous) return { to: '/signup', label: 'Create an account to unlock' };
-  return { to: '/app/settings#data', label: 'Connect a free key to unlock' };
+  return { to: '/app/settings#data', label: 'Connect a data key to unlock' };
 }
 
 /** A price you can't see yet: blurred, with a lock and the next step. Never a made-up number. */
@@ -130,8 +130,8 @@ export function LockedPanel({ reason, symbol }: { reason?: string; symbol?: stri
           <p className="muted small">Markets only shows prices it's allowed to show. Canadian listings outside the core list need a licensed data feed, which isn't connected yet. You can still watch it and log trades.</p>
         </> : <>
           <h3>See real prices for {symbol ?? 'this asset'}</h3>
-          <p className="muted small">{signedIn ? 'Connect a free Alpaca key and Markets shows you real US stock and ETF prices, charts and dip alerts. Your key is encrypted and only ever used for you.' : 'Create a free account, then connect a free Alpaca key to see real US stock and ETF prices, charts and dip alerts. It takes about two minutes.'}</p>
-          {u.to && <Link to={u.to} className="btn primary"><Icon name={signedIn ? 'key' : 'lock'} size={16} />{signedIn ? 'Connect a free key' : 'Create a free account'}</Link>}
+          <p className="muted small">{signedIn ? 'Connect your own data key and Markets shows you real prices, charts, dividends and dip alerts. One EODHD key covers US and Canadian stocks and ETFs. Your key is encrypted and only ever used for you.' : 'Create a free account, then connect your own data key to see real US and Canadian prices, charts and dip alerts. It takes a couple of minutes.'}</p>
+          {u.to && <Link to={u.to} className="btn primary"><Icon name={signedIn ? 'key' : 'lock'} size={16} />{signedIn ? 'Connect a data key' : 'Create a free account'}</Link>}
         </>}
       </div>
     </div>

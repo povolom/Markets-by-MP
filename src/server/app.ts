@@ -8,7 +8,8 @@ import { createMarket, type Market } from './market';
 import { audienceOf, edgeCache, publicCors, rateLimit, requestId, sameOrigin } from './middleware';
 import { getRegistry, withPersonal, type Registry } from './providers/registry';
 import { alpacaInfo, createAlpaca } from './providers/alpaca';
-import { alpacaCreds, markInvalid } from './data-keys';
+import { createEodhd, eodhdInfo } from './providers/eodhd';
+import { markInvalid, userKeys } from './data-keys';
 import { CHANGELOG, publicRoutes } from './routes/public';
 import { privateRoutes } from './routes/private';
 
@@ -18,7 +19,7 @@ const PUBLIC_PATHS = ['/api/v1/status', '/api/v1/coverage', '/api/v1/changelog',
 
 export function createApi(resolveSession: SessionResolver) {
   let markets: { app: Market; api: Market; registry: Registry } | null = null;
-  const personal = new Map<string, { keyId: string; m: Market }>();
+  const personal = new Map<string, { sig: string; m: Market }>();
   const app = new OpenAPIHono<AppEnv>({
     defaultHook: (result, c) => {
       if (!result.success) return errorResponse(c, new ApiError(400, 'bad_request', 'Some fields are missing or invalid.', result.error.issues.map(i => ({ path: i.path.join('.'), message: i.message }))));
@@ -30,17 +31,22 @@ export function createApi(resolveSession: SessionResolver) {
   })());
   const getMarket = (env: AppEnv['Bindings']) => getMarkets(env).app;
   /** The market a signed-in user sees: the shared one, plus their own data key for US stocks if they connected one. */
-  const marketFor = async (env: AppEnv['Bindings'], userId: string | null): Promise<Market> => {
+  const marketFor = async (env: AppEnv['Bindings'], userId: string | null, opts: { scheduled?: boolean } = {}): Promise<Market> => {
     const ms = getMarkets(env);
     if (!userId) return ms.app;
-    const creds = await alpacaCreds(env.DB, env.DATA_KEY_SECRET ?? env.BETTER_AUTH_SECRET, userId).catch(() => null);
-    if (!creds) { personal.delete(userId); return ms.app; }
-    const hit = personal.get(userId); if (hit && hit.keyId === creds.keyId) return hit.m;
+    const keys = await userKeys(env.DB, env.DATA_KEY_SECRET ?? env.BETTER_AUTH_SECRET, userId).catch(() => ({}) as Awaited<ReturnType<typeof userKeys>>);
+    // Scheduled alert checks skip keys on very small daily allowances (EODHD's free plan), so the cron
+    // doesn't use up calls the person needs for browsing. "Check my rules now" still uses the key.
+    const eodhd = keys.eodhd && !(opts.scheduled && keys.eodhd.dailyLimit != null && keys.eodhd.dailyLimit <= 100) ? keys.eodhd : undefined;
+    if (!keys.alpaca && !eodhd) { personal.delete(userId); return ms.app; }
+    const sig = `${keys.alpaca?.keyId ?? ''}|${eodhd?.token.slice(-8) ?? ''}`;
+    const hit = personal.get(userId); if (hit && hit.sig === sig) return hit.m;
     const r = ms.registry;
-    const alpaca = createAlpaca(creds, () => { void markInvalid(env.DB, userId); personal.delete(userId); });
-    const m = createMarket(withPersonal(r.market, alpaca), [...r.providers, alpacaInfo], { audience: 'app', sourceOf: id => r.sourceOf(id), namespace: `u:${userId}` });
+    const reset = (p: 'alpaca' | 'eodhd') => () => { void markInvalid(env.DB, userId, p); personal.delete(userId); };
+    const m = createMarket(withPersonal(r.market, { alpaca: keys.alpaca && createAlpaca(keys.alpaca, reset('alpaca')), eodhd: eodhd && createEodhd(eodhd.token, reset('eodhd')) }),
+      [...r.providers, ...(keys.alpaca ? [alpacaInfo] : []), ...(eodhd ? [eodhdInfo] : [])], { audience: 'app', sourceOf: id => r.sourceOf(id), namespace: `u:${userId}` });
     if (personal.size > 500) personal.clear();
-    personal.set(userId, { keyId: creds.keyId, m });
+    if (!opts.scheduled) personal.set(userId, { sig, m });
     return m;
   };
 

@@ -20,6 +20,6 @@ app.get('/api/auth', c => errorResponse(c, new ApiError(404, 'not_found', 'See /
 export default {
   fetch: app.fetch,
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
-    ctx.waitUntil(evaluateAll(env.DB, userId => marketFor(env, userId)));
+    ctx.waitUntil(evaluateAll(env.DB, userId => marketFor(env, userId, { scheduled: true })));
   },
 } satisfies ExportedHandler<Env>;

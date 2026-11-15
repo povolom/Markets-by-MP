@@ -12,8 +12,9 @@ import { ownedPortfolio, performance, simulate, summarize, transactions, xray, b
 import { evaluateUser, ruleTargets, toRuleInput, type RuleRow } from '../jobs/alerts';
 import { evaluateRule } from '../../domain/dips';
 import { DEMO_POSTS, seedDemo } from '../demo-seed';
-import { listConnections, removeConnection, saveAlpaca } from '../data-keys';
+import { listConnections, removeConnection, saveKey } from '../data-keys';
 import { verifyAlpaca } from '../providers/alpaca';
+import { verifyEodhd } from '../providers/eodhd';
 import { SAMPLE_PORTFOLIOS, sampleView, sharedRow, sharedView, viewerHoldings } from '../community';
 import * as S from '../schemas';
 
@@ -536,8 +537,18 @@ export function privateRoutes(market: (c?: any) => Market) {
     const check = c.env.ENVIRONMENT === 'test' && b.keyId.startsWith('TEST') ? 'ok' : await verifyAlpaca(b);
     if (check === 'invalid') throw new ApiError(400, 'bad_request', 'Alpaca didn\'t accept that key. Check that you copied both the API Key ID and the Secret Key from the same pair.');
     if (check === 'unavailable') throw new ApiError(502, 'upstream_error', 'Couldn\'t reach Alpaca to check the key. Try again in a minute.');
-    await saveAlpaca(c.env.DB, c.env.DATA_KEY_SECRET ?? c.env.BETTER_AUTH_SECRET, u, b);
+    await saveKey(c.env.DB, c.env.DATA_KEY_SECRET ?? c.env.BETTER_AUTH_SECRET, u, 'alpaca', b, b.keyId.slice(-4), { covers: 'US stocks and ETFs' });
     return out(c, { data: (await listConnections(c.env.DB, u)).find(x => x.provider === 'alpaca') });
+  });
+  app.openapi(route('put', '/data-keys/eodhd', 'Account', 'Connect your own EODHD key: US and Canadian stocks, ETFs and indexes', { body: { content: { 'application/json': { schema: z.object({ token: z.string().trim().min(8).max(128) }) } } } }), async c => {
+    const u = uid(c);
+    if (c.get('isAnonymous')) throw new ApiError(403, 'forbidden', 'Create an account first. Demo workspaces can\'t store data keys.');
+    const { token } = c.req.valid('json');
+    const check = c.env.ENVIRONMENT === 'test' && token.startsWith('TEST') ? { status: 'ok' as const, plan: 'test', dailyLimit: token.includes('FREE') ? 20 : 100000 } : await verifyEodhd(token);
+    if (check.status === 'invalid') throw new ApiError(400, 'bad_request', 'EODHD didn\'t accept that key. Copy the API token from your EODHD dashboard (Settings, API key).');
+    if (check.status === 'unavailable') throw new ApiError(502, 'upstream_error', 'Couldn\'t reach EODHD to check the key. Try again in a minute.');
+    await saveKey(c.env.DB, c.env.DATA_KEY_SECRET ?? c.env.BETTER_AUTH_SECRET, u, 'eodhd', { token }, token.slice(-4), { plan: check.plan ?? null, dailyLimit: check.dailyLimit ?? null, covers: 'US and Canadian stocks and ETFs, main indexes' });
+    return out(c, { data: (await listConnections(c.env.DB, u)).find(x => x.provider === 'eodhd') });
   });
   app.openapi(route('delete', '/data-keys/{provider}', 'Account', 'Disconnect a data key', { params: IdParam('provider') }), async c => { await removeConnection(c.env.DB, uid(c), c.req.valid('param').provider); return out(c, { ok: true }); });
 

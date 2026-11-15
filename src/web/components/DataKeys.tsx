@@ -4,23 +4,21 @@ import { dateFmt } from '../lib/format';
 import { Link } from '../lib/router';
 import { Icon, useToast } from './ui';
 
-/** Connect your own free Alpaca key: real US stock and ETF prices, charts and dip alerts, for you only. */
+interface Conn { provider: 'eodhd' | 'alpaca'; hint: string; status: string; createdAt: string; meta: { plan?: string | null; dailyLimit?: number | null; covers?: string } | null }
+
+/** Connect your own data key. One EODHD key covers US and Canadian stocks, ETFs and indexes; a free Alpaca
+ * key covers US only. Either way the key is encrypted and used only for you. */
 export function DataKeys({ guest }: { guest: boolean }) {
   const toast = useToast();
-  const conns = useApi<{ data: { provider: string; hint: string; status: string; createdAt: string }[] }>(guest ? null : '/data-keys');
-  const alpaca = conns.data?.data.find(c => c.provider === 'alpaca');
-  const [f, set] = useState({ keyId: '', secret: '' });
-  const [busy, setBusy] = useState(false); const [err, setErr] = useState('');
-  const [editing, setEditing] = useState(false);
-  const connect = async (e: React.FormEvent) => {
-    e.preventDefault(); setBusy(true); setErr('');
-    try { await api.put('/data-keys/alpaca', { keyId: f.keyId.trim(), secret: f.secret.trim() }); set({ keyId: '', secret: '' }); setEditing(false); conns.reload(); toast('Connected. Real US stock prices are on.'); }
-    catch (e: any) { setErr(e.message); } finally { setBusy(false); }
-  };
-  const disconnect = async () => { await api.del('/data-keys/alpaca'); conns.reload(); toast('Disconnected. Your key was deleted.'); };
-  const connected = alpaca && alpaca.status === 'ok' && !editing;
+  const conns = useApi<{ data: Conn[] }>(guest ? null : '/data-keys');
+  const list = conns.data?.data ?? [];
+  const eodhd = list.find(c => c.provider === 'eodhd'), alpaca = list.find(c => c.provider === 'alpaca');
+  const [form, setForm] = useState<null | 'eodhd' | 'alpaca'>(null);
   const ref = useRef<HTMLElement>(null);
   useEffect(() => { if (location.hash === '#data') ref.current?.scrollIntoView({ block: 'start' }); }, []);
+  const disconnect = async (p: string) => { await api.del(`/data-keys/${p}`); conns.reload(); toast('Disconnected. Your key was deleted.'); };
+  const done = (msg: string) => { setForm(null); conns.reload(); toast(msg); };
+  const connected = list.filter(c => c.status === 'ok');
 
   return (
     <section ref={ref} className="card datakeys" id="data" aria-labelledby="data-h">
@@ -28,35 +26,93 @@ export function DataKeys({ guest }: { guest: boolean }) {
         <span className="datakeys-ico"><Icon name="key" size={20} /></span>
         <div className="stack-sm" style={{ flex: 1 }}>
           <h2 id="data-h">Live stock prices</h2>
-          <p className="muted small">Free stock-data plans only allow personal use, so Markets can't show their prices to everyone. Connect your own free Alpaca key and Markets uses it for you alone: real US stock and ETF prices during the day, full price history, charts and Dip Radar alerts.</p>
+          <p className="muted small">Stock-data providers only allow personal use on their plans, so Markets can't show their prices to everyone. Connect your own key and Markets uses it for you alone: real prices through the day, full history, charts, dividends and Dip Radar alerts.</p>
         </div>
-        {connected && <span className="badge live"><i aria-hidden />Connected</span>}
+        {connected.length > 0 && <span className="badge live"><i aria-hidden />Connected</span>}
       </div>
 
       {guest ? (
         <div className="notice"><Icon name="info" /><span>Demo workspaces can't store keys. <Link to="/signup">Create a free account</Link> first.</span></div>
-      ) : connected ? (
-        <div className="datakeys-on">
-          <dl className="kv"><dt>Provider</dt><dd>Alpaca Market Data</dd><dt>Key</dt><dd className="num">•••• {alpaca!.hint}</dd><dt>Connected</dt><dd>{dateFmt(alpaca!.createdAt)}</dd><dt>Covers</dt><dd>Every US-listed stock and ETF</dd></dl>
-          <div className="row wrap"><button className="btn sm" onClick={() => setEditing(true)}>Replace key</button><button className="btn ghost sm danger" onClick={disconnect}>Disconnect and delete key</button></div>
-        </div>
       ) : (
-        <div className="datakeys-steps">
-          {alpaca?.status === 'invalid' && <div className="notice warn"><Icon name="info" /><span>Alpaca stopped accepting your saved key. Paste a new pair below.</span></div>}
-          <ol className="steps">
-            <li><b>Create a free Alpaca account.</b> Choose a paper-trading account: no money, no trading. <a href="https://app.alpaca.markets/signup" target="_blank" rel="noreferrer">Open Alpaca sign-up <Icon name="external" size={13} /></a></li>
-            <li><b>Generate API keys.</b> In your Alpaca dashboard, find <i>API Keys</i> and choose <i>Generate</i>. Copy both values; the secret is shown once.</li>
-            <li><b>Paste them here.</b> Markets checks the key with Alpaca, then stores it encrypted.</li>
-          </ol>
-          <form className="datakeys-form" onSubmit={connect}>
-            <label className="field">API Key ID<input className="input mono" autoComplete="off" spellCheck={false} value={f.keyId} onChange={e => set({ ...f, keyId: e.target.value })} placeholder="PK…" required /></label>
-            <label className="field">Secret Key<input className="input mono" type="password" autoComplete="off" spellCheck={false} value={f.secret} onChange={e => set({ ...f, secret: e.target.value })} required /></label>
-            {err && <p className="notice warn" role="alert">{err}</p>}
-            <div className="row wrap"><button className="btn primary" disabled={busy || !f.keyId || !f.secret}>{busy ? 'Checking with Alpaca…' : 'Connect'}</button>{editing && <button type="button" className="btn ghost" onClick={() => setEditing(false)}>Cancel</button>}</div>
-          </form>
-          <p className="faint">Your key is encrypted on Markets' server and never sent back to your browser. It's only used to fetch prices for you. Disconnecting deletes it. Canadian listings outside the core list still need a licensed feed.</p>
+        <div className="stack">
+          {connected.map(c => (
+            <div key={c.provider} className="conn">
+              <div className="conn-main">
+                <b>{c.provider === 'eodhd' ? 'EODHD' : 'Alpaca'}</b>
+                <span className="faint">Key •••• {c.hint} · {c.meta?.covers ?? ''} · connected {dateFmt(c.createdAt)}</span>
+                {c.provider === 'eodhd' && c.meta?.dailyLimit != null && c.meta.dailyLimit <= 100 && (
+                  <p className="notice warn small"><Icon name="info" size={15} /><span>This is EODHD's free plan: {c.meta.dailyLimit} calls a day. That's enough to try it, but a watchlist uses it up quickly, and scheduled dip checks are paused to save your calls. EODHD's EOD + Intraday "All World Extended" plan covers everyday use.</span></p>
+                )}
+              </div>
+              <div className="row"><button className="btn sm" onClick={() => setForm(c.provider)}>Replace</button><button className="btn ghost sm danger" onClick={() => disconnect(c.provider)}>Disconnect</button></div>
+            </div>
+          ))}
+          {list.filter(c => c.status === 'invalid').map(c => <div key={c.provider} className="notice warn"><Icon name="info" /><span>{c.provider === 'eodhd' ? 'EODHD' : 'Alpaca'} stopped accepting your saved key. <button className="linkish" onClick={() => setForm(c.provider)}>Paste a new one</button></span></div>)}
+
+          {!eodhd && form !== 'eodhd' && (
+            <div className="provider-card recommended">
+              <div className="provider-top"><div><span className="chip green">Recommended</span><h3>One key for every exchange</h3></div><span className="provider-name">EODHD</span></div>
+              <ul className="provider-points">
+                <li><Icon name="check" size={15} />US and Canadian stocks and ETFs (NYSE, Nasdaq, TSX, TSX Venture) and the main indexes</li>
+                <li><Icon name="check" size={15} />Prices through the day, about 15 minutes delayed, plus history and real dividends</li>
+                <li><Icon name="check" size={15} />Free plan to try it; a paid EODHD plan for everyday use</li>
+              </ul>
+              <button className="btn primary" onClick={() => setForm('eodhd')}><Icon name="key" size={16} />Connect EODHD</button>
+            </div>
+          )}
+          {form === 'eodhd' && <EodhdForm onDone={() => done('Connected. Real US and Canadian prices are on.')} onCancel={() => setForm(null)} />}
+
+          {!alpaca && !eodhd && form !== 'alpaca' && <p className="muted small">Only need US stocks? <button className="linkish" onClick={() => setForm('alpaca')}>Use a free Alpaca key instead</button> (US stocks and ETFs, no Canadian listings).</p>}
+          {form === 'alpaca' && <AlpacaForm onDone={() => done('Connected. Real US stock prices are on.')} onCancel={() => setForm(null)} />}
+
+          <p className="faint">Keys are encrypted on Markets' server, never sent back to your browser, and only used to fetch prices for you. Disconnecting deletes them.</p>
         </div>
       )}
     </section>
+  );
+}
+
+function EodhdForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => void }) {
+  const [token, setToken] = useState(''); const [busy, setBusy] = useState(false); const [err, setErr] = useState('');
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault(); setBusy(true); setErr('');
+    try { await api.put('/data-keys/eodhd', { token: token.trim() }); onDone(); } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
+  };
+  return (
+    <div className="provider-card">
+      <ol className="steps">
+        <li><b>Create an EODHD account.</b> <a href="https://eodhd.com/register" target="_blank" rel="noreferrer">Open EODHD sign-up <Icon name="external" size={13} /></a></li>
+        <li><b>Copy your API token</b> from your EODHD dashboard.</li>
+        <li><b>Paste it here.</b> Markets checks it with EODHD and reads your plan, then stores it encrypted.</li>
+      </ol>
+      <form className="datakeys-form single" onSubmit={submit}>
+        <label className="field">EODHD API token<input className="input mono" type="password" autoComplete="off" spellCheck={false} value={token} onChange={e => setToken(e.target.value)} required /></label>
+        {err && <p className="notice warn" role="alert">{err}</p>}
+        <div className="row wrap"><button className="btn primary" disabled={busy || token.trim().length < 8}>{busy ? 'Checking with EODHD…' : 'Connect'}</button><button type="button" className="btn ghost" onClick={onCancel}>Cancel</button></div>
+      </form>
+    </div>
+  );
+}
+
+function AlpacaForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => void }) {
+  const [f, set] = useState({ keyId: '', secret: '' }); const [busy, setBusy] = useState(false); const [err, setErr] = useState('');
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault(); setBusy(true); setErr('');
+    try { await api.put('/data-keys/alpaca', { keyId: f.keyId.trim(), secret: f.secret.trim() }); onDone(); } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
+  };
+  return (
+    <div className="provider-card">
+      <ol className="steps">
+        <li><b>Create a free Alpaca account.</b> Choose paper trading: no money, no trading. <a href="https://app.alpaca.markets/signup" target="_blank" rel="noreferrer">Open Alpaca sign-up <Icon name="external" size={13} /></a></li>
+        <li><b>Generate API keys</b> in your Alpaca dashboard (API Keys, Generate). Copy both; the secret is shown once.</li>
+        <li><b>Paste them here.</b> Covers US stocks and ETFs only.</li>
+      </ol>
+      <form className="datakeys-form" onSubmit={submit}>
+        <label className="field">API Key ID<input className="input mono" autoComplete="off" spellCheck={false} value={f.keyId} onChange={e => set({ ...f, keyId: e.target.value })} placeholder="PK…" required /></label>
+        <label className="field">Secret Key<input className="input mono" type="password" autoComplete="off" spellCheck={false} value={f.secret} onChange={e => set({ ...f, secret: e.target.value })} required /></label>
+        {err && <p className="notice warn" role="alert">{err}</p>}
+        <div className="row wrap"><button className="btn primary" disabled={busy || !f.keyId || !f.secret}>{busy ? 'Checking with Alpaca…' : 'Connect'}</button><button type="button" className="btn ghost" onClick={onCancel}>Cancel</button></div>
+      </form>
+    </div>
   );
 }

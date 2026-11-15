@@ -7,6 +7,7 @@
 import type { Instrument } from '../../domain/types';
 import { ApiError } from '../http';
 import { US_MICS, type Alpaca } from './alpaca';
+import { eodhdTicker, type Eodhd } from './eodhd';
 import { createCoinGecko } from './coingecko';
 import { createDemoProvider } from './demo';
 import { createEcb } from './ecb';
@@ -79,25 +80,34 @@ export function getRegistry(env: { YAHOO_RESEARCH?: string; MARKET_DATA?: string
 }
 
 export function lockedError(inst: Instrument) {
-  const us = US_MICS.has(inst.exchange);
-  return new ApiError(403, 'locked', us
-    ? `Live prices for ${inst.symbol} need a data key. Sign in and connect a free Alpaca key in Settings to see real prices, shown only to you.`
-    : `Markets doesn't have a free price source for ${inst.symbol} yet. Canadian prices need a licensed feed.`, { reason: us ? 'needs_key' : 'no_source' });
+  return new ApiError(403, 'locked', `Live prices for ${inst.symbol} need a data key. Sign in and connect your own key in Settings to see real prices, shown only to you.`, { reason: 'needs_key', exchange: inst.exchange });
 }
 
-/** A user's own Alpaca key serves every US stock and ETF they look at; everything else comes from the shared providers. */
-export function withPersonal(base: MarketDataProvider, alpaca: Alpaca): MarketDataProvider {
-  const mine = (id: string) => { const i = ENTRIES.get(id)?.inst; return i && (i.assetClass === 'stock' || i.assetClass === 'etf') && US_MICS.has(i.exchange) ? i : null; };
+/** A user's own keys serve the assets they cover: EODHD covers US and Canadian stocks, ETFs and the main
+ * indexes; Alpaca covers US stocks and ETFs. Everything else comes from the shared providers. */
+export function withPersonal(base: MarketDataProvider, keys: { alpaca?: Alpaca; eodhd?: Eodhd }): MarketDataProvider {
+  type Route = { kind: 'eodhd'; inst: Instrument; tk: string } | { kind: 'alpaca'; inst: Instrument } | null;
+  const route = (id: string): Route => {
+    const inst = ENTRIES.get(id)?.inst; if (!inst) return null;
+    if (keys.eodhd) { const tk = eodhdTicker(inst); if (tk) return { kind: 'eodhd', inst, tk }; }
+    if (keys.alpaca && (inst.assetClass === 'stock' || inst.assetClass === 'etf') && US_MICS.has(inst.exchange)) return { kind: 'alpaca', inst };
+    return null;
+  };
+  const bars = (r: NonNullable<Route>, now: Date) => r.kind === 'eodhd' ? keys.eodhd!.history(r.inst, r.tk, now) : keys.alpaca!.history(r.inst, now);
   return {
     ...base,
     info: { ...base.info, provenance: 'production' },
-    async quote(id, now) { const i = mine(id); return i ? alpaca.quote(i, now) : base.quote(id, now); },
-    async history(id) { const i = mine(id); return i ? alpaca.history(i, new Date()) : base.history(id); },
-    async statistics(id, now) { const i = mine(id); if (!i) return base.statistics(id, now); const bars = await alpaca.history(i, now); return alpaca.statistics(i, bars, bars.at(-1) ? `${bars.at(-1)!.date}T21:00:00Z` : null); },
-    // No invented dividends, events or statements next to real prices.
-    async dividends(id, now) { return mine(id) ? [] : base.dividends(id, now); },
-    async events(id, now) { return mine(id) ? [] : base.events(id, now); },
-    async financials(id, now) { return mine(id) ? null : base.financials(id, now); },
-    async news(id, now) { return id && mine(id) ? [] : base.news(id, now); },
+    async quote(id, now) { const r = route(id); if (!r) return base.quote(id, now); return r.kind === 'eodhd' ? keys.eodhd!.quote(r.inst, r.tk, now) : keys.alpaca!.quote(r.inst, now); },
+    async history(id) { const r = route(id); return r ? bars(r, new Date()) : base.history(id); },
+    async statistics(id, now) {
+      const r = route(id); if (!r) return base.statistics(id, now);
+      const b = await bars(r, now);
+      return r.kind === 'eodhd' ? keys.eodhd!.statistics(r.inst, b) : keys.alpaca!.statistics(r.inst, b, b.at(-1) ? `${b.at(-1)!.date}T21:00:00Z` : null);
+    },
+    async dividends(id, now) { const r = route(id); if (!r) return base.dividends(id, now); return r.kind === 'eodhd' ? keys.eodhd!.dividends(r.inst, r.tk, now) : []; },
+    // No invented events, statements or headlines next to real prices.
+    async events(id, now) { return route(id) ? [] : base.events(id, now); },
+    async financials(id, now) { return route(id) ? null : base.financials(id, now); },
+    async news(id, now) { return id && route(id) ? [] : base.news(id, now); },
   };
 }
