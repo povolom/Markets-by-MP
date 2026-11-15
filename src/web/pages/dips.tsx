@@ -1,3 +1,4 @@
+import { symbolOf } from '../lib/format';
 import { useEffect, useMemo, useState } from 'react';
 import { api, useApi } from '../lib/api';
 import { Link, navigate, useLocation } from '../lib/router';
@@ -61,7 +62,7 @@ function ContextPanel({ id, onClose }: { id: string; onClose: () => void }) {
     <Dialog title="Dip Context" onClose={onClose} wide>
       {error && <ErrorState error={error} />}
       {!d ? <Loading rows={6} /> : <>
-        <div className="row wrap"><b style={{ fontSize: 18 }}>{id.split('.')[1].toUpperCase()}</b>{d.provenance === 'demo' && <span className="badge demo">Demo data</span>}</div>
+        <div className="row wrap"><b style={{ fontSize: 18 }}>{symbolOf(id)}</b>{d.provenance === 'demo' && <span className="badge demo">Demo data</span>}</div>
         <div className="grid-3">
           <div className="stat"><span className="label">From 30-day high</span><span className="value"><Change pct={o.drop.from30dHigh} size={20} /></span></div>
           <div className="stat"><span className="label">From 52-week high</span><span className="value"><Change pct={o.drop.from52wHigh} size={20} /></span></div>
@@ -69,9 +70,9 @@ function ContextPanel({ id, onClose }: { id: string; onClose: () => void }) {
         </div>
         <h3>Observations</h3>
         <div className="scroll-x"><table className="t"><thead><tr><th>Performance</th><th className="r">30 days</th><th className="r">90 days</th><th className="r">1 year</th></tr></thead><tbody>
-          <tr><td><b>{id.split('.')[1].toUpperCase()}</b></td><td className="r"><Change pct={o.performance.instrument.d30} /></td><td className="r"><Change pct={o.performance.instrument.d90} /></td><td className="r"><Change pct={o.performance.instrument.y1} /></td></tr>
-          {o.performance.benchmark && <tr><td>Benchmark ({o.performance.benchmark.instrumentId.split('.')[1].toUpperCase()})</td><td className="r"><Change pct={o.performance.benchmark.d30} /></td><td className="r"><Change pct={o.performance.benchmark.d90} /></td><td className="r"><Change pct={o.performance.benchmark.y1} /></td></tr>}
-          {o.performance.sectorPeers.slice(0, 4).map((p: any) => <tr key={p.instrumentId}><td className="muted">Sector peer {p.instrumentId.split('.')[1].toUpperCase()}</td><td className="r"><Change pct={p.d30} /></td><td className="r"><Change pct={p.d90} /></td><td className="r"><Change pct={p.y1} /></td></tr>)}
+          <tr><td><b>{symbolOf(id)}</b></td><td className="r"><Change pct={o.performance.instrument.d30} /></td><td className="r"><Change pct={o.performance.instrument.d90} /></td><td className="r"><Change pct={o.performance.instrument.y1} /></td></tr>
+          {o.performance.benchmark && <tr><td>Benchmark ({symbolOf(o.performance.benchmark.instrumentId)})</td><td className="r"><Change pct={o.performance.benchmark.d30} /></td><td className="r"><Change pct={o.performance.benchmark.d90} /></td><td className="r"><Change pct={o.performance.benchmark.y1} /></td></tr>}
+          {o.performance.sectorPeers.slice(0, 4).map((p: any) => <tr key={p.instrumentId}><td className="muted">Sector peer {symbolOf(p.instrumentId)}</td><td className="r"><Change pct={p.d30} /></td><td className="r"><Change pct={p.d90} /></td><td className="r"><Change pct={p.y1} /></td></tr>)}
         </tbody></table></div>
         <p className="faint">{o.performance.note}</p>
         <dl className="kv"><dt>Volatility (1 year)</dt><dd>{o.volatility1y ? `${o.volatility1y}%` : '—'}</dd><dt>Largest drop in the last year</dt><dd>{o.maxDrawdown1y ? `${o.maxDrawdown1y}%` : '—'}</dd></dl>
@@ -135,7 +136,7 @@ export function DipRadar() {
         <div className="card-head"><h2>Your rules</h2></div>
         {!rules.data?.data.length ? <Empty title="No rules yet" action={<button className="btn primary" onClick={() => setEdit({})}>Create a rule</button>}>A rule says what a dip means to you, like "8% below its 30-day high".</Empty> : (
           <table className="t responsive"><tbody>{rules.data.data.map(r => (
-            <tr key={r.id}><td><b>{r.name || KIND_LABEL[r.kind]}</b><div className="faint">{KIND_LABEL[r.kind]} · {r.kind === 'target_price' ? priceFmt(r.threshold) : `${r.threshold}%`}{r.kind === 'below_rolling_high' && ` · ${r.windowDays} days`} · {r.scope === 'instrument' ? r.instrumentId?.split('.')[1].toUpperCase() : r.scope === 'watchlist' ? 'a watchlist' : 'holdings'}</div></td>
+            <tr key={r.id}><td><b>{r.name || KIND_LABEL[r.kind]}</b><div className="faint">{KIND_LABEL[r.kind]} · {r.kind === 'target_price' ? priceFmt(r.threshold) : `${r.threshold}%`}{r.kind === 'below_rolling_high' && ` · ${r.windowDays} days`} · {r.scope === 'instrument' ? symbolOf(r.instrumentId) : r.scope === 'watchlist' ? 'a watchlist' : 'holdings'}</div></td>
               <td className="r"><span className={`chip ${r.active ? 'green' : ''}`}>{r.active ? 'On' : 'Paused'}</span></td>
               <td className="r"><button className="btn sm ghost" onClick={() => setEdit({ id: r.id, initial: r })}>Edit</button><button className="btn sm ghost danger" onClick={async () => { if (!confirm('Delete this rule?')) return; await api.del(`/alerts/rules/${r.id}`); void rules.reload(); }}>Delete</button></td></tr>))}</tbody></table>
         )}
@@ -154,7 +155,7 @@ function PlanDialog({ initial, planId, onClose, onSaved }: { initial: any; planI
   const levelsTotal = p.levels.reduce((s: number, l: any) => s + Number(l.amount || 0), 0);
   const save = async () => {
     setErr('');
-    try { const body = { ...p, maxTotal: p.maxTotal || '0', name: p.name || `${p.instrumentId?.split('.')[1]?.toUpperCase() ?? 'My'} plan`, levels: p.mode === 'regular' ? [] : p.levels }; if (planId) await api.patch(`/plans/${planId}`, body); else await api.post('/plans', body); onSaved(); }
+    try { const body = { ...p, maxTotal: p.maxTotal || '0', name: p.name || `${symbolOf(p.instrumentId) || 'My'} plan`, levels: p.mode === 'regular' ? [] : p.levels }; if (planId) await api.patch(`/plans/${planId}`, body); else await api.post('/plans', body); onSaved(); }
     catch (e: any) { setErr(e.message); }
   };
   return (
@@ -197,7 +198,7 @@ export function Plans() {
             return (
               <article key={p.id} className={`card stack-sm ${p.levelsReached.length ? 'highlight' : ''}`}>
                 <div className="row between"><div><h2>{p.name}</h2><span className="faint">{p.mode === 'regular' ? 'Regular investing' : p.mode === 'dip' ? 'Dip review alerts' : 'Hybrid'} · {pfName(p.portfolioId)}</span></div><span className={`chip ${p.status === 'active' ? 'green' : ''}`}>{p.status === 'active' ? 'Active' : p.status === 'paused' ? 'Paused' : 'Archived'}</span></div>
-                <div className="row wrap"><Link to={`/assets/${p.instrumentId}`}><b>{p.instrumentId.split('.')[1].toUpperCase()}</b></Link>{p.current && <><Price value={p.current.price} /><span className="faint">30D high</span><Change pct={p.current.dropPct} /></>}</div>
+                <div className="row wrap"><Link to={`/assets/${p.instrumentId}`}><b>{symbolOf(p.instrumentId)}</b></Link>{p.current && <><Price value={p.current.price} /><span className="faint">30D high</span><Change pct={p.current.dropPct} /></>}</div>
                 <dl className="kv">
                   {p.mode !== 'dip' && <><dt>Regular</dt><dd>{money(p.regularAmount)} {p.schedule} (≈{money(p.commitment.monthlyRegular)}/month)</dd></>}
                   {p.mode !== 'regular' && <><dt>Review levels</dt><dd>{p.levels.map((l: any) => `−${l.dropPct}% → ${money(l.amount)}`).join(', ')}</dd></>}
@@ -260,7 +261,7 @@ export function WhatIf() {
             {res.warnings.map((w: string) => <div key={w} className="notice warn"><Icon name="info" />{w}</div>)}
             <div className="grid-2"><div className="stat"><span className="label">Cash before → after</span><span className="value num" style={{ fontSize: 18 }}>{money(res.cashBefore)} → {money(res.cashAfter)}</span></div><div className="stat"><span className="label">New money added</span><span className="value num" style={{ fontSize: 18 }}>{money(res.newMoney, res.baseCurrency)}</span></div></div>
             <div className="grid-2"><div className="stat"><span className="label">Largest single company</span><span className="value num" style={{ fontSize: 18 }}>{res.before.largestCompanyPct ?? '—'}% → {res.after.largestCompanyPct ?? '—'}%</span></div><div className="stat"><span className="label">Est. annual dividends</span><span className="value num" style={{ fontSize: 18 }}>{money(res.estimatedAnnualDividends.before.annual)} → {money(res.estimatedAnnualDividends.after.annual)}</span></div></div>
-            <div className="scroll-x"><table className="t"><thead><tr><th>Holding</th><th className="r">Weight</th><th className="r">Avg cost</th></tr></thead><tbody>{res.holdings.slice(0, 10).map((h: any) => <tr key={h.instrumentId}><td>{h.instrumentId.split('.')[1].toUpperCase()}</td><td className="r num">{h.weightBefore}% → <b>{h.weightAfter}%</b></td><td className="r num">{h.avgCostBefore ? priceFmt(h.avgCostBefore) : '—'} → {h.avgCostAfter ? priceFmt(h.avgCostAfter) : '—'}</td></tr>)}</tbody></table></div>
+            <div className="scroll-x"><table className="t"><thead><tr><th>Holding</th><th className="r">Weight</th><th className="r">Avg cost</th></tr></thead><tbody>{res.holdings.slice(0, 10).map((h: any) => <tr key={h.instrumentId}><td>{symbolOf(h.instrumentId)}</td><td className="r num">{h.weightBefore}% → <b>{h.weightAfter}%</b></td><td className="r num">{h.avgCostBefore ? priceFmt(h.avgCostBefore) : '—'} → {h.avgCostAfter ? priceFmt(h.avgCostAfter) : '—'}</td></tr>)}</tbody></table></div>
             <ExposureCompare title="Currency" before={res.before.currencies} after={res.after.currencies} />
             <ExposureCompare title="Sector" before={res.before.sectors} after={res.after.sectors} />
             <ExposureCompare title="Country" before={res.before.countries} after={res.after.countries} />

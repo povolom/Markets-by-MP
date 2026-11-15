@@ -1,3 +1,4 @@
+import { symbolOf } from '../lib/format';
 import { useState } from 'react';
 import { api, authClient, useApi } from '../lib/api';
 import { Link, navigate } from '../lib/router';
@@ -42,7 +43,7 @@ export function Discover() {
         <h2>Similar & different</h2>
         <div style={{ maxWidth: 420 }}><InstrumentPicker value={focus} onChange={id => setFocus(id)} label="Start from an asset" /></div>
         {rel.loading && focus && <Loading />}
-        {rel.data && <><div className="grid-2">{(['similar', 'different'] as const).map(k => <div key={k} className="stack-sm"><h3>{k === 'similar' ? 'Similar exposure' : 'Different exposure'}</h3>{rel.data!.data[k].map((r: any) => <div key={r.instrumentId} className="card" style={{ padding: 12 }}><Link to={`/assets/${r.instrumentId}`}><b>{r.instrumentId.split('.')[1].toUpperCase()}</b></Link><ul className="muted small" style={{ margin: '6px 0 0', paddingLeft: 18 }}>{r.reasons.map((x: string) => <li key={x}>{x}</li>)}</ul></div>)}{!rel.data!.data[k].length && <p className="faint">Nothing stood out.</p>}</div>)}</div><p className="faint">{rel.data.data.disclaimer} {rel.data.data.method}</p></>}
+        {rel.data && <><div className="grid-2">{(['similar', 'different'] as const).map(k => <div key={k} className="stack-sm"><h3>{k === 'similar' ? 'Similar exposure' : 'Different exposure'}</h3>{rel.data!.data[k].map((r: any) => <div key={r.instrumentId} className="card" style={{ padding: 12 }}><Link to={`/assets/${r.instrumentId}`}><b>{symbolOf(r.instrumentId)}</b></Link><ul className="muted small" style={{ margin: '6px 0 0', paddingLeft: 18 }}>{r.reasons.map((x: string) => <li key={x}>{x}</li>)}</ul></div>)}{!rel.data!.data[k].length && <p className="faint">Nothing stood out.</p>}</div>)}</div><p className="faint">{rel.data.data.disclaimer} {rel.data.data.method}</p></>}
       </div>
       <div className="card flush">
         <div className="card-head"><div><h2>Recent pullbacks</h2><p className="faint">{dips.data?.definition}</p></div><DataBadge meta={dips.data?.data[0]?.quote.meta} /></div>
@@ -57,18 +58,6 @@ export function Discover() {
       </div>
       <div className="card flush"><div className="card-head"><h2>Browse coverage</h2><span className="faint">{browse.data?.data.length ?? 0} instruments</span></div>
         <table className="t responsive"><tbody>{(browse.data?.data ?? []).map(i => <tr key={i.id}><td><AssetCell inst={i} /></td><td className="hide-m"><span className="chip">{CLASS_LABEL[i.assetClass]}</span></td><td className="r faint">{i.exchange} · {i.currency}</td></tr>)}</tbody></table></div>
-    </>
-  );
-}
-
-// ---------------- Community ----------------
-export function Community() {
-  const { data, reload } = useApi<{ data: any[]; posting: any }>('/community/posts');
-  return (
-    <>
-      <div className="page-head"><div><h1>Community</h1><p>Learn from how other investors think. Portfolios are always private unless you choose to share.</p></div></div>
-      {data?.posting && <div className="notice"><Icon name="info" /><span>{data.posting.reason} Markets won't add copy-trading, return leaderboards or anything that rewards trading more.</span></div>}
-      {!data ? <div className="card"><Loading /></div> : data.data.map(p => <PostCard key={p.id} p={p} onBookmark={async () => { await api.post(`/community/posts/${p.id}/bookmark`); void reload(); }} />)}
     </>
   );
 }
@@ -114,7 +103,7 @@ export function Journal() {
     <>
       <div className="page-head"><div><h1>Investment Journal</h1><p>Write down why, before you act. Come back and reflect.</p></div><button className="btn primary" onClick={() => setEdit({ title: '', sources: [] })}><Icon name="plus" />New entry</button></div>
       {loading && !data ? <div className="card"><Loading /></div> : !data?.data.length ? <div className="card"><Empty title="No entries yet" action={<button className="btn primary" onClick={() => setEdit({ title: '', sources: [] })}>Write your first entry</button>}>A thesis, your sources, your concerns and when you'll review it.</Empty></div> :
-        <div className="grid-2">{data.data.map(j => <article key={j.id} className="card stack-sm"><div className="row between"><h2>{j.title}</h2>{j.instrumentId && <Link to={`/assets/${j.instrumentId}`} className="chip">{j.instrumentId.split('.')[1].toUpperCase()}</Link>}</div>{j.thesis && <p>{j.thesis}</p>}{j.concerns && <p className="muted small"><b>Concerns:</b> {j.concerns}</p>}<div className="row wrap faint">{j.horizon && <span>Horizon: {j.horizon}</span>}{j.reviewDate && <span>Review on {dateFmt(j.reviewDate)}</span>}<span>Updated {timeAgo(j.updatedAt)}</span></div>{j.reflection && <p className="notice green small">{j.reflection}</p>}<div className="row"><button className="btn sm" onClick={() => setEdit(j)}>Edit</button><button className="btn sm ghost danger" onClick={async () => { if (!confirm('Delete this entry?')) return; await api.del(`/journal/${j.id}`); void reload(); }}>Delete</button></div></article>)}</div>}
+        <div className="grid-2">{data.data.map(j => <article key={j.id} className="card stack-sm"><div className="row between"><h2>{j.title}</h2>{j.instrumentId && <Link to={`/assets/${j.instrumentId}`} className="chip">{symbolOf(j.instrumentId)}</Link>}</div>{j.thesis && <p>{j.thesis}</p>}{j.concerns && <p className="muted small"><b>Concerns:</b> {j.concerns}</p>}<div className="row wrap faint">{j.horizon && <span>Horizon: {j.horizon}</span>}{j.reviewDate && <span>Review on {dateFmt(j.reviewDate)}</span>}<span>Updated {timeAgo(j.updatedAt)}</span></div>{j.reflection && <p className="notice green small">{j.reflection}</p>}<div className="row"><button className="btn sm" onClick={() => setEdit(j)}>Edit</button><button className="btn sm ghost danger" onClick={async () => { if (!confirm('Delete this entry?')) return; await api.del(`/journal/${j.id}`); void reload(); }}>Delete</button></div></article>)}</div>}
       {edit && <JournalDialog entry={edit} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); void reload(); toast('Saved.'); }} />}
     </>
   );

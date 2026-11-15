@@ -7,11 +7,52 @@ import type { Bar, Instrument, NewsItem, Quote } from '../domain/types';
 import { coalesce } from './middleware';
 import { ApiError, notFound } from './http';
 import type { MarketDataProvider, ProviderInfo } from './providers/types';
+import { ALIASES } from './providers/demo-catalogue';
 
 export const RANGES = { '1M': 31, '3M': 92, '6M': 183, 'YTD': -1, '1Y': 366, '5Y': 1830, 'MAX': 1830 } as const;
 export type Range = keyof typeof RANGES;
 export const MAX_HISTORY_DAYS = 1830;   // five years of daily bars
 export const MAX_BATCH = 50;
+
+// ---- Search ----
+const STOP = new Set(['inc', 'corp', 'corporation', 'company', 'co', 'ltd', 'limited', 'plc', 'the', 'group', 'holdings', 'sa', 'class', 'trust', 'etf', 'index', 'fund']);
+const normalize = (s: string) => s.toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9. ]+/g, ' ').replace(/\s+/g, ' ').trim();
+const words = (s: string) => normalize(s).split(' ').filter(w => w && !STOP.has(w));
+function editDistance(a: string, b: string, max: number) {
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i]; let best = i;
+    for (let j = 1; j <= b.length; j++) { cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); best = Math.min(best, cur[j]); }
+    if (best > max) return max + 1;
+    prev = cur;
+  }
+  return prev[b.length];
+}
+const CLASS_WEIGHT: Record<string, number> = { stock: 3, etf: 2.5, crypto: 2, index: 1.5, mutual_fund: 1, fx: 1 };
+const popularity = (i: Instrument) => CLASS_WEIGHT[i.assetClass] ?? 0;
+function matchScore(i: Instrument, q: string): number {
+  const sym = i.symbol.toLowerCase(), qs = q.replace(/\.to$/, '').replace(/ /g, '');
+  if (sym === qs || sym.replace(/[.-]/g, '') === qs.replace(/[.-]/g, '')) return 100;
+  if (q.endsWith('.to') && sym === qs && i.exchange === 'XTSE') return 100;
+  const name = normalize(i.name), nameWords = words(i.name), qWords = words(q).length ? words(q) : [q];
+  const aliases = (ALIASES[i.id] ?? []).map(normalize);
+  if (aliases.includes(q)) return 95;
+  if (sym.startsWith(qs) && qs.length >= 1) return 85 - (sym.length - qs.length);
+  if (name.startsWith(q)) return 80;
+  if (aliases.some(a => a.startsWith(q))) return 75;
+  if (qWords.every(w => nameWords.some(nw => nw.startsWith(w)))) return 70;
+  if (name.includes(q) || aliases.some(a => a.includes(q))) return 55;
+  const compact = (x: string) => x.replace(/[ .-]/g, '');
+  if (qs.length >= 4 && (compact(name).includes(qs) || aliases.some(a => compact(a).includes(qs)))) return 50;
+  if (q.length >= 4) {
+    const max = q.length >= 7 ? 2 : 1;
+    if (qWords.every(w => w.length < 4 || nameWords.some(nw => editDistance(w, nw.slice(0, Math.max(w.length, nw.length)), max) <= max || editDistance(w, nw.slice(0, w.length), max) <= max)) && qWords.some(w => w.length >= 4)) return 40;
+    if (editDistance(qs, sym, 1) <= 1) return 35;
+  }
+  if (i.description.toLowerCase().includes(q) && q.length >= 4) return 20;
+  return 0;
+}
 
 export function createMarket(p: MarketDataProvider, providers: ProviderInfo[]) {
   const inst = (id: string): Instrument => { const i = p.instrument(id); if (!i) throw notFound(`Instrument "${id}"`); return i; };
@@ -31,10 +72,13 @@ export function createMarket(p: MarketDataProvider, providers: ProviderInfo[]) {
       const hit = list.find(i => i.id === symbol.toLowerCase()) ?? list.find(i => i.symbol === s && (symbol.toUpperCase().endsWith('.TO') ? i.exchange === 'XTSE' : true));
       return hit?.id ?? null;
     },
+    /** Finds instruments by symbol, company name, nickname or a close misspelling, best match first. */
     search(q: string, assetClass?: string) {
-      const n = q.trim().toLowerCase();
-      return p.instruments().filter(i => (!assetClass || i.assetClass === assetClass) && (!n || i.symbol.toLowerCase().includes(n) || i.name.toLowerCase().includes(n) || i.id.includes(n)))
-        .sort((a, b) => Number(b.symbol.toLowerCase() === n) - Number(a.symbol.toLowerCase() === n) || Number(b.symbol.toLowerCase().startsWith(n)) - Number(a.symbol.toLowerCase().startsWith(n)) || a.symbol.localeCompare(b.symbol));
+      const list = p.instruments().filter(i => !assetClass || i.assetClass === assetClass);
+      const n = normalize(q);
+      if (!n) return [...list].sort((a, b) => popularity(b) - popularity(a) || a.symbol.localeCompare(b.symbol));
+      const scored = list.map(i => ({ i, score: matchScore(i, n) })).filter(x => x.score > 0);
+      return scored.sort((a, b) => b.score - a.score || popularity(b.i) - popularity(a.i) || a.i.symbol.localeCompare(b.i.symbol)).map(x => x.i);
     },
     quote: (id: string): Promise<Quote> => { inst(id); return coalesce(`q:${id}`, () => guard('a quote', () => p.quote(id, new Date()))); },
     async quotes(ids: string[]) {

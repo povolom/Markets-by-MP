@@ -1,3 +1,4 @@
+import { symbolOf } from './lib/format';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
@@ -9,7 +10,8 @@ import { Developers, Forgot, Landing, Login, SignUp } from './pages/public';
 import { Asset, Overview, Watchlists } from './pages/core';
 import { DipRadar, Plans, WhatIf } from './pages/dips';
 import { Portfolio } from './pages/portfolio';
-import { Calendar, Community, Connections, Discover, Journal, Notifications, Settings, Welcome } from './pages/more';
+import { Calendar, Connections, Discover, Journal, Notifications, Settings, Welcome } from './pages/more';
+import { Community } from './pages/community';
 
 const APP: Record<string, () => React.ReactElement> = {
   '/app': () => <Overview />, '/app/watchlists': () => <Watchlists />, '/app/portfolio': () => <Portfolio />, '/app/dip-radar': () => <DipRadar />,
@@ -38,7 +40,7 @@ function Routes() {
   if (path === '/forgot' || path === '/reset') { titled('Reset password'); return <Forgot />; }
   if (path === '/developers') { titled('Developers'); return <Developers />; }
   const asset = match('/assets/:id', path);
-  if (asset) { titled(asset.id.split('.')[1]?.toUpperCase() ?? 'Asset'); return <AssetRoute id={asset.id} />; }
+  if (asset) { titled(symbolOf(asset.id) || 'Asset'); return <AssetRoute id={asset.id} />; }
   const page = APP[path];
   if (page) { titled(path === '/app' ? 'Overview' : path.split('/').pop()!.replace('-', ' ').replace(/^\w/, c => c.toUpperCase())); return <AppShell>{page()}</AppShell>; }
   return <NotFound />;

@@ -42,3 +42,6 @@ export function timeAgo(iso: string | null | undefined) {
 }
 export const SESSION_LABEL: Record<string, string> = { open: 'Market open', pre: 'Pre-market', post: 'After hours', closed: 'Market closed', always_open: 'Trades 24/7' };
 export const CLASS_LABEL: Record<string, string> = { stock: 'Stock', etf: 'ETF', crypto: 'Crypto', index: 'Index', fx: 'Currency', mutual_fund: 'Mutual fund' };
+
+/** Display symbol from a Markets ID ("xnys.brk.b" -> "BRK.B"). Prefer the instrument's own symbol when you have it. */
+export const symbolOf = (id: string | null | undefined) => (id ? id.slice(id.indexOf('.') + 1).toUpperCase() : '');

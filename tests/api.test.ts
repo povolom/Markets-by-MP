@@ -151,3 +151,43 @@ describe('rate limits', () => {
     expect(last).toBe(429);
   });
 });
+
+describe('search', () => {
+  const top = async (q: string) => (await call('GET', `/api/v1/assets/search?q=${encodeURIComponent(q)}&limit=3`)).body.data.map((i: any) => i.id);
+  it('finds companies by name, nickname, ticker and close misspellings', async () => {
+    expect((await top('apple'))[0]).toBe('xnas.aapl');
+    expect((await top('Microsoft'))[0]).toBe('xnas.msft');
+    expect((await top('google'))[0]).toBe('xnas.googl');
+    expect((await top('royal bank'))[0]).toBe('xtse.ry');
+    expect((await top('td.to'))[0]).toBe('xtse.td');
+    expect((await top('walmart'))[0]).toBe('xnys.wmt');
+    expect((await top('nvidea'))[0]).toBe('xnas.nvda');
+    expect((await top('cocacola'))).toContain('xnys.ko');
+    expect((await top('bitcoin'))[0]).toBe('crypto.btc-usd');
+    expect((await top('brk.b'))[0]).toBe('xnys.brk.b');
+  });
+});
+
+describe('community portfolios', () => {
+  it('shares percentages only, keeps the demo portfolio private, and lets people follow', async () => {
+    addUser(db, 'dana');
+    await call('PATCH', '/api/v1/me', { user: 'dana', body: { displayName: 'Dana' } });
+    const p = (await call('POST', '/api/v1/portfolios', { user: 'dana', body: { name: 'Main' } })).body.data.id;
+    await call('POST', `/api/v1/portfolios/${p}/transactions`, { user: 'dana', body: { type: 'deposit', tradeDate: '2025-01-02', amount: '5000' } });
+    await call('POST', `/api/v1/portfolios/${p}/transactions`, { user: 'dana', body: { type: 'buy', instrumentId: 'xtse.xeqt', tradeDate: '2025-01-03', quantity: '50', price: '32' } });
+    expect((await call('PUT', `/api/v1/portfolios/${p}/share`, { user: 'bob', body: { title: 'x', handle: 'bobby' } })).status).toBe(404);
+    expect((await call('PUT', `/api/v1/portfolios/${p}/share`, { user: 'dana', body: { title: 'Simple', handle: 'dana_invests' } })).status).toBe(200);
+    const list = await call('GET', '/api/v1/community/portfolios', { user: 'bob' });
+    const card = list.body.data.find((x: any) => x.id === p);
+    expect(card.owner.handle).toBe('dana_invests');
+    expect(card.holdings[0].weightPct).toMatch(/^\d+\.\d\d$/);
+    expect(JSON.stringify(card)).not.toMatch(/"(value|marketValue|cash|amount|totalValue|quantity|costBasis)":/); // no amounts leak
+    expect(list.body.data.some((x: any) => x.kind === 'sample')).toBe(true);
+    expect((await call('POST', `/api/v1/community/portfolios/${p}/follow`, { user: 'bob' })).body.following).toBe(true);
+    expect((await call('GET', '/api/v1/community/portfolios?filter=following', { user: 'bob' })).body.data.map((x: any) => x.id)).toEqual([p]);
+    await call('DELETE', `/api/v1/portfolios/${p}/share`, { user: 'dana' });
+    expect((await call('GET', '/api/v1/community/portfolios', { user: 'bob' })).body.data.some((x: any) => x.id === p)).toBe(false);
+    const guestPf = (await call('GET', '/api/v1/portfolios', { user: 'guest1' })).body.data[0].id;
+    expect((await call('PUT', `/api/v1/portfolios/${guestPf}/share`, { user: 'guest1', guest: true, body: { title: 'x', handle: 'guesty' } })).status).toBe(403);
+  });
+});

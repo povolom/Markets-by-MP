@@ -6605,6 +6605,378 @@
     }
    }
   },
+  "/api/v1/community/portfolios": {
+   "get": {
+    "tags": [
+     "Community"
+    ],
+    "summary": "Portfolios people share (percentages only), plus labelled samples",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "enum": [
+        "all",
+        "following"
+       ],
+       "default": "all"
+      },
+      "required": false,
+      "name": "filter",
+      "in": "query"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Portfolios people share (percentages only), plus labelled samples",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/community/portfolios/{id}/follow": {
+   "post": {
+    "tags": [
+     "Community"
+    ],
+    "summary": "Follow or unfollow a shared portfolio",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64
+      },
+      "required": true,
+      "name": "id",
+      "in": "path"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Follow or unfollow a shared portfolio",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/portfolios/{id}/share": {
+   "get": {
+    "tags": [
+     "Community"
+    ],
+    "summary": "How this portfolio is shared, and a preview of what others would see",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64
+      },
+      "required": true,
+      "name": "id",
+      "in": "path"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "How this portfolio is shared, and a preview of what others would see",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   },
+   "put": {
+    "tags": [
+     "Community"
+    ],
+    "summary": "Share this portfolio (percentages only)",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64
+      },
+      "required": true,
+      "name": "id",
+      "in": "path"
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+         },
+         "note": {
+          "type": "string",
+          "maxLength": 280,
+          "default": ""
+         },
+         "showHoldings": {
+          "type": "boolean",
+          "default": true
+         },
+         "handle": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]{3,20}$"
+         }
+        },
+        "required": [
+         "title",
+         "handle"
+        ]
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Share this portfolio (percentages only)",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "Community"
+    ],
+    "summary": "Stop sharing this portfolio",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "parameters": [
+     {
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64
+      },
+      "required": true,
+      "name": "id",
+      "in": "path"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Stop sharing this portfolio",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/community/posts": {
    "get": {
     "tags": [

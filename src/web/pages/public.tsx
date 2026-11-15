@@ -1,3 +1,4 @@
+import { symbolOf } from '../lib/format';
 import { useState } from 'react';
 import { api, authClient, useApi } from '../lib/api';
 import { Link, navigate, useLocation } from '../lib/router';
@@ -16,7 +17,7 @@ function LiveStrip() {
     <div className="card flush">
       <div className="card-head"><h2>Markets right now</h2><DataBadge meta={data?.data?.meta} /></div>
       <table className="t responsive"><thead><tr><th>Benchmark</th><th className="r">Last</th><th className="r">Today</th></tr></thead>
-        <tbody>{b.map((q: any) => <tr key={q.instrumentId}><td>{q.instrumentId.split('.')[1].toUpperCase()}</td><td className="r num">{priceFmt(q.price)}</td><td className="r"><Change pct={q.changePct} /></td></tr>)}</tbody></table>
+        <tbody>{b.map((q: any) => <tr key={q.instrumentId}><td>{symbolOf(q.instrumentId)}</td><td className="r num">{priceFmt(q.price)}</td><td className="r"><Change pct={q.changePct} /></td></tr>)}</tbody></table>
     </div>
   );
 }
@@ -28,6 +29,7 @@ export function Landing() {
     <>
       <PublicHeader />
       <section className="hero">
+        <img src="/icons/icon-192.png" alt="" className="hero-logo" width={72} height={72} />
         <div className="row" style={{ justifyContent: 'center', marginBottom: 18 }}><span className="badge outline">Beta</span><span className="faint">Demo data until licensed market data is connected</span></div>
         <h1>Your entire investing world.</h1>
         <p className="tagline">Research. Track. Discover. Plan.</p>
@@ -66,8 +68,46 @@ export function Landing() {
   );
 }
 
+/** Sign-in and sign-up layout: the brand on one side, the form on the other (stacked on phones). */
 function AuthFrame({ title, children, sub }: { title: string; sub?: string; children: React.ReactNode }) {
-  return <div className="auth-wrap"><div className="auth-card"><Wordmark /><div><h1>{title}</h1>{sub && <p className="muted" style={{ marginTop: 6 }}>{sub}</p>}</div>{children}</div></div>;
+  const pts = [38, 42, 40, 47, 45, 52, 50, 58, 55, 61, 59, 66, 63, 70, 74, 71, 78];
+  const d = pts.map((v, i) => `${i ? 'L' : 'M'}${(i / (pts.length - 1)) * 300},${100 - v}`).join('');
+  return (
+    <div className="auth-split">
+      <aside className="auth-brand" aria-hidden>
+        <Wordmark />
+        <div className="stack">
+          <h2 className="auth-tagline">Your entire investing world.</h2>
+          <p className="muted">Research. Track. Discover. Plan.</p>
+          <svg viewBox="0 0 300 100" className="auth-chart"><defs><linearGradient id="ag" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="var(--accent)" stopOpacity=".22" /><stop offset="1" stopColor="var(--accent)" stopOpacity="0" /></linearGradient></defs><path d={`${d}L300,100L0,100Z`} fill="url(#ag)" /><path d={d} fill="none" stroke="var(--accent)" strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round" /></svg>
+          <ul className="auth-points">
+            <li><Icon name="dip" size={16} />Dip Radar tells you when your own rules match</li>
+            <li><Icon name="xray" size={16} />See through your ETFs with Portfolio X-Ray</li>
+            <li><Icon name="whatif" size={16} />Try a purchase in What-If before you record it</li>
+          </ul>
+        </div>
+        <p className="faint">Beta with labelled demo data. Markets never trades or moves money.</p>
+      </aside>
+      <main className="auth-main" id="main">
+        <div className="auth-card">
+          <div className="auth-mobile-logo"><Wordmark /></div>
+          <div><h1>{title}</h1>{sub && <p className="muted" style={{ marginTop: 8 }}>{sub}</p>}</div>
+          {children}
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function PasswordField({ value, onChange, autoComplete, hint }: { value: string; onChange: (v: string) => void; autoComplete: string; hint?: string }) {
+  const [show, setShow] = useState(false);
+  return (
+    <label className="field">Password
+      <span className="pw-wrap"><input className="input" type={show ? 'text' : 'password'} required minLength={autoComplete === 'new-password' ? 10 : undefined} autoComplete={autoComplete} value={value} onChange={e => onChange(e.target.value)} aria-describedby={hint ? 'pw-hint' : undefined} />
+        <button type="button" className="pw-toggle" onClick={() => setShow(x => !x)} aria-label={show ? 'Hide password' : 'Show password'}>{show ? 'Hide' : 'Show'}</button></span>
+      {hint && <span id="pw-hint" className="faint">{hint}</span>}
+    </label>
+  );
 }
 
 export function SignUp() {
@@ -89,11 +129,11 @@ export function SignUp() {
       <form className="stack" onSubmit={submit}>
         <label className="field">Name<input className="input" autoComplete="name" value={f.name} onChange={e => set({ ...f, name: e.target.value })} /></label>
         <label className="field">Email<input className="input" type="email" required autoComplete="email" value={f.email} onChange={e => set({ ...f, email: e.target.value })} /></label>
-        <label className="field">Password<input className="input" type="password" required minLength={10} autoComplete="new-password" value={f.password} onChange={e => set({ ...f, password: e.target.value })} aria-describedby="pw-hint" /><span id="pw-hint" className="faint">At least 10 characters.</span></label>
+        <PasswordField value={f.password} onChange={v => set({ ...f, password: v })} autoComplete="new-password" hint={f.password && f.password.length < 10 ? `${10 - f.password.length} more characters needed.` : 'At least 10 characters.'} />
         {err && <p className="notice warn" role="alert">{err}</p>}
-        <button className="btn primary block" disabled={busy}>{busy ? 'Creating…' : 'Create account'}</button>
+        <button className="btn primary block lg" disabled={busy || f.password.length < 10}>{busy ? 'Creating your account…' : 'Create account'}</button>
       </form>
-      <p className="muted small">Already have one? <Link to="/login">Log in</Link></p>
+      <p className="muted small">Already have an account? <Link to="/login">Log in</Link></p>
       <p className="faint">Email verification isn't available yet in the beta, so please use an address you can get to later.</p>
     </AuthFrame>
   );
@@ -108,18 +148,20 @@ export function Login() {
     const r = await authClient.signIn.email({ email: f.email, password: f.password, rememberMe: true });
     setBusy(false);
     if (r.error) { setErr(r.error.status === 401 ? 'That email and password don\'t match an account.' : (r.error.message ?? 'Could not log in.')); return; }
-    navigate(search.get('next')?.startsWith('/app') ? search.get('next')! : '/app');
+    const next = search.get('next') ?? '';
+    navigate(/^\/(app|assets)(\/|$|\?)/.test(next) ? next : '/app');
   };
   return (
-    <AuthFrame title="Log in">
+    <AuthFrame title="Welcome back" sub="Log in to your watchlists, portfolios and rules.">
       <form className="stack" onSubmit={submit}>
         <label className="field">Email<input className="input" type="email" required autoComplete="email" value={f.email} onChange={e => set({ ...f, email: e.target.value })} /></label>
-        <label className="field">Password<input className="input" type="password" required autoComplete="current-password" value={f.password} onChange={e => set({ ...f, password: e.target.value })} /></label>
+        <PasswordField value={f.password} onChange={v => set({ ...f, password: v })} autoComplete="current-password" />
         {err && <p className="notice warn" role="alert">{err}</p>}
-        <button className="btn primary block" disabled={busy}>{busy ? 'Logging in…' : 'Log in'}</button>
+        <button className="btn primary block lg" disabled={busy}>{busy ? 'Logging in…' : 'Log in'}</button>
       </form>
       <div className="row between small"><Link to="/signup">Create an account</Link><Link to="/forgot">Forgot password?</Link></div>
-      <button className="btn ghost" onClick={() => startDemo(toast)}>Explore the demo instead</button>
+      <div className="or"><span>or</span></div>
+      <button className="btn block" onClick={() => startDemo(toast)}>Explore the demo, no account needed</button>
     </AuthFrame>
   );
 }

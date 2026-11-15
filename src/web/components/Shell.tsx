@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode 
 import { api, authClient, useApi } from '../lib/api';
 import { Link, navigate, useLocation } from '../lib/router';
 import { CLASS_LABEL } from '../lib/format';
-import { Dialog, Icon, Ticker, Wordmark, useToast } from './ui';
+import { Dialog, ErrorState, Icon, Ticker, Wordmark, useToast } from './ui';
 
 export interface Me { id: string; email: string | null; isGuest: boolean; isDemo: boolean; displayName: string; baseCurrency: string; interests: string[]; preferences: Record<string, any>; onboarded: boolean }
 const MeCtx = createContext<{ me: Me | null; reload: () => void }>({ me: null, reload: () => {} });
@@ -76,21 +76,25 @@ function useShortcuts(openSearch: () => void) {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { path } = useLocation();
-  const session = authClient.useSession();
-  const { data, reload, error } = useApi<{ data: Me }>(session.data ? '/me' : null, [session.data?.user.id]);
-  const unread = useApi<{ data: any[] }>(session.data ? '/alerts/events?unread=true' : null, [session.data?.user.id, path]);
+  // The server decides whether you're signed in (/me), not the client's cached session state, which can
+  // lag for a moment right after logging in.
+  const { data, reload, error, loading } = useApi<{ data: Me }>('/me');
+  const signedIn = Boolean(data?.data);
+  const unread = useApi<{ data: any[] }>(signedIn ? '/alerts/events?unread=true' : null, [signedIn, path]);
   const [search, setSearch] = useState(false);
   const [more, setMore] = useState(false);
   const toast = useToast();
   useShortcuts(() => setSearch(true));
-  useEffect(() => { if (!session.isPending && !session.data) navigate(`/login?next=${encodeURIComponent(location.pathname)}`, { replace: true }); }, [session.isPending, session.data]);
+  useEffect(() => { if (error?.status === 401) navigate(`/login?next=${encodeURIComponent(location.pathname + location.search)}`, { replace: true }); }, [error]);
   useEffect(() => { if (data?.data && !data.data.onboarded && !data.data.isGuest && path !== '/app/welcome') navigate('/app/welcome', { replace: true }); }, [data, path]);
   useEffect(() => setMore(false), [path]);
   const me = data?.data ?? null;
   const count = unread.data?.data.length ?? 0;
   const isActive = (to: string) => (to === '/app' ? path === '/app' : path.startsWith(to));
-  if (session.isPending || (session.data && !me && !error)) return <div className="auth-wrap"><div className="skeleton" style={{ width: 200, height: 20 }} /></div>;
-  if (!session.data) return null;
+  if (!me) {
+    if (error && error.status !== 401) return <div className="auth-wrap"><div className="stack-sm" style={{ maxWidth: 420 }}><ErrorState error={error} retry={reload} /></div></div>;
+    return <div className="auth-wrap" aria-busy={loading}><div className="skeleton" style={{ width: 200, height: 20 }} /></div>;
+  }
   return (
     <MeCtx.Provider value={{ me, reload }}>
       <a href="#main" className="skip">Skip to content</a>

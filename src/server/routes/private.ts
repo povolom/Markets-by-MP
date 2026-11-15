@@ -12,6 +12,7 @@ import { ownedPortfolio, performance, simulate, summarize, transactions, xray, b
 import { evaluateUser, ruleTargets, toRuleInput, type RuleRow } from '../jobs/alerts';
 import { evaluateRule } from '../../domain/dips';
 import { DEMO_POSTS, seedDemo } from '../demo-seed';
+import { SAMPLE_PORTFOLIOS, sampleView, sharedRow, sharedView, viewerHoldings } from '../community';
 import * as S from '../schemas';
 
 const err = (d: string) => ({ description: d, content: { 'application/json': { schema: S.ErrorBody } } });
@@ -26,7 +27,7 @@ export function privateRoutes(market: () => Market) {
   const uid = (c: any): string => { const u = c.get('userId'); if (!u) throw new ApiError(401, 'unauthorized', 'Sign in to use this endpoint.'); return u; };
   const out = (c: any, data: unknown, status = 200) => c.json(data as any, status);
   const assertInstrument = (id: string) => market().instrument(id);
-  const route = <M extends 'get' | 'post' | 'patch' | 'delete', P extends string, R extends NonNullable<RouteConfig['request']> = {}>(method: M, path: P, tag: string, summary: string, request?: R) =>
+  const route = <M extends 'get' | 'post' | 'put' | 'patch' | 'delete', P extends string, R extends NonNullable<RouteConfig['request']> = {}>(method: M, path: P, tag: string, summary: string, request?: R) =>
     createRoute({ method, path, tags: [tag], summary, request: (request ?? {}) as R, responses: ok(summary), security: [{ session: [] }] });
 
   // ---------- Account ----------
@@ -160,7 +161,12 @@ export function privateRoutes(market: () => Market) {
   });
   app.openapi(route('get', '/portfolios/{id}', 'Portfolios', 'Holdings, cash, income and gains', { params: IdParam() }), async c => {
     const u = uid(c); const s = await summarize(c.env.DB, market(), u, c.req.valid('param').id);
-    return out(c, { data: { portfolio: s.portfolio, summary: s.summary, fx: s.fx, transactionCount: s.transactionCount, method: 'Average-cost method. Amounts are converted to your base currency at each trade date\'s rate; current values use today\'s rate.' } });
+    // Today's change across holdings: units x change since the previous close, at today's FX rate.
+    let day = D(0), dayKnown = s.summary.holdings.length > 0;
+    for (const h of s.summary.holdings) { const q = s.quotes.find(x => x?.instrumentId === h.instrumentId); if (!q) { dayKnown = false; continue; } day = day.plus(D(h.quantity).times(D(q.change)).times(D(s.fx[q.currency] ?? 1))); }
+    const hv = s.summary.holdingsValue ? D(s.summary.holdingsValue) : null;
+    const today = dayKnown && hv ? { change: money(day), changePct: hv.minus(day).gt(0) ? day.div(hv.minus(day)).times(100).round(2).toFixed(2) : null } : null;
+    return out(c, { data: { portfolio: s.portfolio, summary: s.summary, today, fx: s.fx, transactionCount: s.transactionCount, method: 'Average-cost method. Amounts are converted to your base currency at each trade date\'s rate; current values use today\'s rate.' } });
   });
   app.openapi(route('get', '/portfolios/{id}/performance', 'Portfolios', 'Time- and money-weighted returns, with an optional benchmark', { params: IdParam(), query: z.object({ benchmark: z.string().optional() }) }), async c => {
     const u = uid(c); const b = c.req.valid('query').benchmark; if (b) assertInstrument(b);
@@ -457,6 +463,52 @@ export function privateRoutes(market: () => Market) {
   app.openapi(route('get', '/connections', 'Connections', 'Read-only account connections and their sync status'), async c => {
     const rows = await all(c.env.DB, 'SELECT * FROM connections WHERE user_id = ?', uid(c));
     return out(c, { data: rows, providers: [], configured: false, note: 'No account-aggregation provider is configured yet, so linking a brokerage or bank isn\'t available. Markets will only ever use provider-hosted, read-only authorization and never asks for banking passwords. Coverage for Canadian institutions such as Wealthsimple and Questrade hasn\'t been verified. Use manual entry or CSV import meanwhile.' });
+  });
+
+  // ---------- Community portfolios ----------
+  app.openapi(route('get', '/community/portfolios', 'Community', 'Portfolios people share (percentages only), plus labelled samples', { query: z.object({ filter: z.enum(['all', 'following']).default('all') }) }), async c => {
+    const u = uid(c); const m = market(); const f = c.req.valid('query').filter;
+    const follows = new Set((await all<{ portfolio_id: string }>(c.env.DB, 'SELECT portfolio_id FROM portfolio_follows WHERE user_id = ?', u)).map(r => r.portfolio_id));
+    const counts = new Map((await all<{ portfolio_id: string; n: number }>(c.env.DB, 'SELECT portfolio_id, COUNT(*) AS n FROM portfolio_follows GROUP BY portfolio_id')).map(r => [r.portfolio_id, r.n]));
+    const rows = await all<any>(c.env.DB, 'SELECT s.*, p.handle, p.display_name FROM shared_portfolios s JOIN profiles p ON p.user_id = s.user_id ORDER BY s.updated_at DESC LIMIT 60');
+    const mine = await viewerHoldings(c.env.DB, u);
+    const shared = (await Promise.all(rows.map(r => sharedView(c.env.DB, m, r).catch(() => null)))).filter(Boolean) as any[];
+    const all_ = [...shared.map(x => ({ ...x, isMine: rows.find(r => r.portfolio_id === x.id)?.user_id === u })), ...SAMPLE_PORTFOLIOS.map(x => ({ ...sampleView(m, x), isMine: false }))]
+      .map(x => ({ ...x, following: follows.has(x.id), followers: counts.get(x.id) ?? 0, youAlsoHold: x.holdings.filter((h: any) => mine.has(h.instrumentId)).map((h: any) => h.symbol) }))
+      .filter(x => f === 'all' || x.following);
+    return out(c, { data: all_, note: 'Shared portfolios show percentages only. Markets doesn\'t rank portfolios by returns, and how someone invests isn\'t advice for you. Manually entered holdings aren\'t verified.' });
+  });
+  app.openapi(route('post', '/community/portfolios/{id}/follow', 'Community', 'Follow or unfollow a shared portfolio', { params: IdParam() }), async c => {
+    const u = uid(c); const { id } = c.req.valid('param');
+    if (!SAMPLE_PORTFOLIOS.some(x => x.id === id) && !(await sharedRow(c.env.DB, id))) throw notFound('Shared portfolio');
+    const has = await first(c.env.DB, 'SELECT 1 FROM portfolio_follows WHERE user_id = ? AND portfolio_id = ?', u, id);
+    await run(c.env.DB, has ? 'DELETE FROM portfolio_follows WHERE user_id = ? AND portfolio_id = ?' : 'INSERT INTO portfolio_follows (user_id, portfolio_id) VALUES (?, ?)', u, id);
+    return out(c, { ok: true, following: !has });
+  });
+  app.openapi(route('get', '/portfolios/{id}/share', 'Community', 'How this portfolio is shared, and a preview of what others would see', { params: IdParam() }), async c => {
+    const u = uid(c); const { id } = c.req.valid('param'); const p = await ownedPortfolio(c.env.DB, u, id);
+    const row = await sharedRow(c.env.DB, id);
+    const profile = await first<any>(c.env.DB, 'SELECT handle, display_name FROM profiles WHERE user_id = ?', u);
+    const preview = await sharedView(c.env.DB, market(), { portfolio_id: id, user_id: u, title: row?.title ?? p.name, note: row?.note ?? '', show_holdings: row ? row.show_holdings : 1, handle: profile?.handle, display_name: profile?.display_name });
+    return out(c, { data: { shared: Boolean(row), canShare: p.kind === 'manual' || p.kind === 'connected', reason: p.kind === 'demo' ? 'The demo portfolio has made-up holdings, so it can\'t be shared.' : null, title: row?.title ?? p.name, note: row?.note ?? '', showHoldings: row ? row.show_holdings === 1 : true, handle: profile?.handle ?? null, preview } });
+  });
+  app.openapi(route('put', '/portfolios/{id}/share', 'Community', 'Share this portfolio (percentages only)', { params: IdParam(), body: { content: { 'application/json': { schema: z.object({ title: z.string().trim().min(1).max(60), note: z.string().max(280).default(''), showHoldings: z.boolean().default(true), handle: z.string().regex(/^[a-z0-9_]{3,20}$/, 'Use 3 to 20 lowercase letters, numbers or underscores.') }) } } } }), async c => {
+    const u = uid(c); const { id } = c.req.valid('param'); const b = c.req.valid('json'); const p = await ownedPortfolio(c.env.DB, u, id);
+    if (c.get('isAnonymous')) throw new ApiError(403, 'forbidden', 'Create an account to share a portfolio.');
+    if (p.kind === 'demo') throw new ApiError(403, 'forbidden', 'The demo portfolio has made-up holdings, so it can\'t be shared.');
+    if (b.handle.startsWith('sample')) throw badRequest('That handle is reserved.');
+    const taken = await first(c.env.DB, 'SELECT 1 FROM profiles WHERE handle = ? AND user_id != ?', b.handle, u);
+    if (taken) throw new ApiError(409, 'conflict', 'That handle is taken.');
+    await c.env.DB.batch([
+      stmt(c.env.DB, 'UPDATE profiles SET handle = ? WHERE user_id = ?', b.handle, u),
+      stmt(c.env.DB, "INSERT INTO shared_portfolios (portfolio_id, user_id, title, note, show_holdings) VALUES (?, ?, ?, ?, ?) ON CONFLICT(portfolio_id) DO UPDATE SET title = excluded.title, note = excluded.note, show_holdings = excluded.show_holdings, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')", id, u, b.title, b.note, b.showHoldings ? 1 : 0),
+    ]);
+    return out(c, { ok: true, shared: true });
+  });
+  app.openapi(route('delete', '/portfolios/{id}/share', 'Community', 'Stop sharing this portfolio', { params: IdParam() }), async c => {
+    const u = uid(c); const { id } = c.req.valid('param'); await ownedPortfolio(c.env.DB, u, id);
+    await c.env.DB.batch([stmt(c.env.DB, 'DELETE FROM shared_portfolios WHERE portfolio_id = ? AND user_id = ?', id, u), stmt(c.env.DB, 'DELETE FROM portfolio_follows WHERE portfolio_id = ?', id)]);
+    return out(c, { ok: true, shared: false });
   });
 
   // ---------- Community (labelled examples) ----------

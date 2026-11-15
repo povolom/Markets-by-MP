@@ -1,3 +1,4 @@
+import { symbolOf } from '../lib/format';
 import { useMemo, useState } from 'react';
 import { api, useApi } from '../lib/api';
 import { Link, navigate } from '../lib/router';
@@ -7,6 +8,7 @@ import { LineChart } from '../components/Chart';
 import { InstrumentPicker } from '../components/InstrumentPicker';
 import { AssetCell, Change, ClassLabel, DataBadge, Dialog, Empty, ErrorState, Icon, Loading, Price, Seg, Spark, useToast } from '../components/ui';
 import { RuleDialog } from './dips';
+import { AddAssets } from '../components/AddAssets';
 
 // ---------------- Overview ----------------
 export function Overview() {
@@ -22,16 +24,7 @@ export function Overview() {
   return (
     <>
       <div className="page-head"><div><h1>{greeting()}{me?.displayName && me.displayName !== 'Guest' ? `, ${me.displayName}` : ''}</h1><p>{hasHoldings ? 'Your portfolio, what you follow, and what\'s coming up.' : 'Start with a watchlist. No holdings or bank connection needed.'}</p></div><DataBadge meta={ov.data?.data.meta} /></div>
-      {hasHoldings && s && (
-        <div className="card">
-          <div className="card-head"><div className="stack-sm" style={{ gap: 4 }}><span className="row wrap faint">{pf.data!.data.portfolio.name}{pf.data!.data.portfolio.kind === 'demo' && <span className="badge demo">Demo portfolio</span>}</span><span className="num" style={{ fontSize: 30, fontWeight: 750, letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>{money(s.totalValue, s.baseCurrency)}</span></div><Link to="/app/portfolio" className="btn sm">Open portfolio</Link></div>
-          <div className="grid-3">
-            <div className="stat"><span className="label">Unrealized gain</span><span className="value"><Change abs={s.unrealizedGain} currency={s.baseCurrency} size={18} /></span></div>
-            <div className="stat"><span className="label">Investment gain (value − contributions)</span><span className="value">{s.investmentGain ? <Change abs={s.investmentGain} currency={s.baseCurrency} size={18} /> : <span className="faint small">Record deposits to see this</span>}</span></div>
-            <div className="stat"><span className="label">Dividends and interest received</span><span className="value num">{money(s.income, s.baseCurrency)}</span></div>
-          </div>
-        </div>
-      )}
+      {hasHoldings && s && <PortfolioHero pid={first!.id} d={pf.data!.data} />}
       <div className="grid-2">
         <div className="card flush">
           <div className="card-head"><h2>Watchlists</h2><Link to="/app/watchlists" className="btn ghost sm">Manage</Link></div>
@@ -44,16 +37,52 @@ export function Overview() {
       <div className="grid-2">
         <div className="card flush">
           <div className="card-head"><h2>Markets</h2><DataBadge meta={ov.data?.data.meta} /></div>
-          <table className="t responsive"><tbody>{(ov.data?.data.benchmarks ?? []).map((q: any) => <tr key={q.instrumentId} className="clickable" onClick={() => navigate(`/assets/${q.instrumentId}`)}><td><Link to={`/assets/${q.instrumentId}`}>{q.instrumentId.split('.')[1].toUpperCase()}</Link> <span className="faint">{SESSION_LABEL[q.session]}</span></td><td className="r num">{priceFmt(q.price)}</td><td className="r"><Change pct={q.changePct} /></td></tr>)}</tbody></table>
+          <table className="t responsive"><tbody>{(ov.data?.data.benchmarks ?? []).map((q: any) => <tr key={q.instrumentId} className="clickable" onClick={() => navigate(`/assets/${q.instrumentId}`)}><td><Link to={`/assets/${q.instrumentId}`}>{symbolOf(q.instrumentId)}</Link> <span className="faint">{SESSION_LABEL[q.session]}</span></td><td className="r num">{priceFmt(q.price)}</td><td className="r"><Change pct={q.changePct} /></td></tr>)}</tbody></table>
         </div>
         <div className="card flush">
           <div className="card-head"><h2>Biggest moves today</h2><span className="faint">Across Markets' coverage</span></div>
-          <table className="t responsive"><tbody>{[...(ov.data?.data.gainers ?? []).slice(0, 3), ...(ov.data?.data.decliners ?? []).slice(0, 3)].map((q: any) => <tr key={q.instrumentId}><td><Link to={`/assets/${q.instrumentId}`}>{q.instrumentId.split('.')[1].toUpperCase()}</Link></td><td className="r num">{priceFmt(q.price)} <span className="faint">{q.currency}</span></td><td className="r"><Change pct={q.changePct} /></td></tr>)}</tbody></table>
+          <table className="t responsive"><tbody>{[...(ov.data?.data.gainers ?? []).slice(0, 3), ...(ov.data?.data.decliners ?? []).slice(0, 3)].map((q: any) => <tr key={q.instrumentId}><td><Link to={`/assets/${q.instrumentId}`}>{symbolOf(q.instrumentId)}</Link></td><td className="r num">{priceFmt(q.price)} <span className="faint">{q.currency}</span></td><td className="r"><Change pct={q.changePct} /></td></tr>)}</tbody></table>
         </div>
       </div>
     </>
   );
 }
+function PortfolioHero({ pid, d }: { pid: string; d: any }) {
+  const s = d.summary;
+  const [range, setRange] = useState<'1M' | '6M' | '1Y' | 'All'>('6M');
+  const perf = useApi<{ data: any }>(`/portfolios/${pid}/performance`, [pid]);
+  const series = perf.data?.data.series ?? [];
+  const days = { '1M': 31, '6M': 183, '1Y': 366, All: 99999 }[range];
+  const cut = series.length ? new Date(Date.parse(series[series.length - 1].date) - days * 86400000).toISOString().slice(0, 10) : '';
+  const pts = series.filter((x: any) => x.date >= cut).map((x: any) => ({ date: x.date, value: Number(x.value) }));
+  return (
+    <section className="hero-card">
+      <div className="hero-top">
+        <div className="stack-sm" style={{ gap: 6 }}>
+          <span className="row wrap faint">{d.portfolio.name}{d.portfolio.kind === 'demo' && <span className="badge demo">Demo portfolio</span>}</span>
+          <span className="hero-value num">{money(s.totalValue, s.baseCurrency)}</span>
+          <span className="row wrap" style={{ gap: 14 }}>
+            {d.today && <span><Change abs={d.today.change} pct={d.today.changePct} currency={s.baseCurrency} /> <span className="faint">today</span></span>}
+            {s.unrealizedGain && <span><Change abs={s.unrealizedGain} currency={s.baseCurrency} /> <span className="faint">unrealized</span></span>}
+          </span>
+        </div>
+        <div className="stack-sm" style={{ justifyItems: 'end' }}>
+          <Seg label="Chart range" value={range} onChange={setRange} options={(['1M', '6M', '1Y', 'All'] as const).map(r => ({ value: r, label: r }))} />
+          <Link to="/app/portfolio" className="btn sm ghost">Open portfolio</Link>
+        </div>
+      </div>
+      {pts.length > 1 ? <LineChart points={pts} height={190} label={`${d.portfolio.name} value in ${s.baseCurrency}`} format={v => money(v)} /> : <div className="skeleton" style={{ height: 160 }} />}
+      <div className="hero-stats">
+        <div className="stat"><span className="label">Investment gain</span><span className="value">{s.investmentGain ? <Change abs={s.investmentGain} currency={s.baseCurrency} size={17} /> : <span className="faint small">Record deposits to see this</span>}</span></div>
+        <div className="stat"><span className="label">Contributions</span><span className="value num">{s.contributionsRecorded ? money(s.netContributions, s.baseCurrency) : '—'}</span></div>
+        <div className="stat"><span className="label">Cash</span><span className="value num">{s.cash != null ? money(s.cash, s.baseCurrency) : '—'}</span></div>
+        <div className="stat"><span className="label">Income received</span><span className="value num">{money(s.income, s.baseCurrency)}</span></div>
+      </div>
+      <p className="faint">The chart shows value including contributions; see Performance for returns that remove them.</p>
+    </section>
+  );
+}
+
 const greeting = () => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'; };
 
 function Brief({ data, loading, error }: { data: any; loading: boolean; error: any }) {
@@ -63,7 +92,7 @@ function Brief({ data, loading, error }: { data: any; loading: boolean; error: a
       {loading && !data ? <Loading /> : error ? <ErrorState error={error} /> : data && (
         <div className="stack-sm">
           {data.alerts.map((a: any) => <Link key={a.id} to="/app/notifications" className="notice green" style={{ textDecoration: 'none' }}><Icon name="bell" /><span>{a.message} <span className="faint">{timeAgo(a.observedAt)}</span></span></Link>)}
-          {data.moves.map((m: any) => <div key={m.instrumentId} className="row between small"><Link to={`/assets/${m.instrumentId}`}>{m.instrumentId.split('.')[1].toUpperCase()} moved</Link><span><Change pct={m.changePct} /> <span className="faint">{timeAgo(m.observedAt)}</span></span></div>)}
+          {data.moves.map((m: any) => <div key={m.instrumentId} className="row between small"><Link to={`/assets/${m.instrumentId}`}>{symbolOf(m.instrumentId)} moved</Link><span><Change pct={m.changePct} /> <span className="faint">{timeAgo(m.observedAt)}</span></span></div>)}
           {data.upcoming.slice(0, 4).map((e: any) => <div key={e.id} className="row between small"><span>{e.title}</span><span className="faint">{dateFmt(e.date)}{!e.confirmed && ' (estimated)'}</span></div>)}
           {!data.alerts.length && !data.moves.length && !data.upcoming.length && <p className="muted small">Nothing notable in what you follow right now.</p>}
           {data.provenance === 'demo' && <p className="faint">Based on demo data.</p>}
@@ -136,9 +165,7 @@ export function Watchlists() {
       {(dialog === 'new' || dialog === 'rename') && <Dialog title={dialog === 'new' ? 'New watchlist' : 'Rename watchlist'} onClose={() => setDialog(null)} footer={<><button className="btn ghost" onClick={() => setDialog(null)}>Cancel</button><button className="btn primary" disabled={!name.trim()} onClick={() => { setDialog(null); void run(async () => { if (dialog === 'new') { const r = await api.post('/watchlists', { name }); setActive(r.data.id); } else await api.patch(`/watchlists/${list.id}`, { name }); }, dialog === 'new' ? 'Watchlist created.' : 'Renamed.'); }}>Save</button></>}>
         <label className="field">Name<input className="input" value={name} onChange={e => setName(e.target.value)} maxLength={60} /></label>
       </Dialog>}
-      {dialog === 'add' && list && <Dialog title={`Add to ${list.name}`} onClose={() => setDialog(null)}>
-        <InstrumentPicker value={null} onChange={id => { setDialog(null); void run(() => api.post(`/watchlists/${list.id}/items`, { instrumentId: id }), 'Added.'); }} label="Find an instrument" />
-      </Dialog>}
+      {dialog === 'add' && list && <AddAssets list={list} onClose={() => setDialog(null)} onChanged={() => void reload()} />}
       {dialog === 'rule' && list && <RuleDialog initial={{ scope: 'watchlist', watchlistId: list.id }} onClose={() => setDialog(null)} onSaved={() => { setDialog(null); toast('Rule saved. Dip Radar checks it every 30 minutes.'); }} />}
     </>
   );
@@ -208,7 +235,7 @@ export function Asset({ id, signedIn }: { id: string; signedIn: boolean }) {
         </dl> : <Loading />}<p className="muted small" style={{ marginTop: 12 }}>{i.description}</p></div>
         <div className="card"><h2 style={{ marginBottom: 12 }}>Upcoming</h2>{(events.data?.data ?? []).filter(e => e.date >= today).slice(0, 6).map(e => <div key={e.id} className="row between small" style={{ padding: '6px 0' }}><span>{e.title}</span><span className={e.confirmed ? '' : 'faint'}>{dateFmt(e.date)}{!e.confirmed && ' · estimated'}</span></div>)}{events.data && !events.data.data.some(e => e.date >= today) && <p className="muted small">No upcoming events.</p>}</div>
         <div className="card span-2"><h2 style={{ marginBottom: 6 }}>Similar & different</h2><p className="faint" style={{ marginBottom: 12 }}>{related.data?.data.disclaimer}</p>
-          {related.data ? <div className="grid-2">{(['similar', 'different'] as const).map(k => <div key={k} className="stack-sm"><h3>{k === 'similar' ? 'Similar exposure' : 'Different exposure'}</h3>{related.data!.data[k].map((r: any) => <div key={r.instrumentId} className="row between" style={{ alignItems: 'flex-start' }}><Link to={`/assets/${r.instrumentId}`}><b>{r.instrumentId.split('.')[1].toUpperCase()}</b></Link><span className="faint" style={{ textAlign: 'right' }}>{r.reasons.slice(0, 2).join(' · ')}</span></div>)}{!related.data!.data[k].length && <p className="faint">Nothing stood out.</p>}</div>)}</div> : <Loading />}
+          {related.data ? <div className="grid-2">{(['similar', 'different'] as const).map(k => <div key={k} className="stack-sm"><h3>{k === 'similar' ? 'Similar exposure' : 'Different exposure'}</h3>{related.data!.data[k].map((r: any) => <div key={r.instrumentId} className="row between" style={{ alignItems: 'flex-start' }}><Link to={`/assets/${r.instrumentId}`}><b>{symbolOf(r.instrumentId)}</b></Link><span className="faint" style={{ textAlign: 'right' }}>{r.reasons.slice(0, 2).join(' · ')}</span></div>)}{!related.data!.data[k].length && <p className="faint">Nothing stood out.</p>}</div>)}</div> : <Loading />}
           <p className="faint" style={{ marginTop: 10 }}>{related.data?.data.method}</p></div>
       </div>}
       {tab === 'financials' && <Financials id={id} />}
@@ -245,7 +272,7 @@ export function PostCard({ p, onBookmark }: { p: any; onBookmark?: () => void })
     <article className="card stack-sm">
       <div className="row wrap between"><div className="row"><span className="avatar" aria-hidden>{p.author.name.slice(-1)}</span><div><b>{p.author.name}</b> <span className="faint">@{p.author.handle} · {timeAgo(p.createdAt)}</span></div></div><div className="row"><span className="badge demo">Sample discussion</span>{onBookmark && <button className="btn sm ghost" onClick={onBookmark} aria-pressed={p.bookmarked}>{p.bookmarked ? 'Saved' : 'Save'}</button>}</div></div>
       {p.thesis ? <dl className="stack-sm" style={{ margin: 0 }}>{(['idea', 'reasoning', 'risks', 'horizon'] as const).map(k => <div key={k}><dt className="faint" style={{ textTransform: 'capitalize' }}>{k}</dt><dd style={{ margin: 0 }}>{p.thesis[k]}</dd></div>)}</dl> : <p>{p.body}</p>}
-      <div className="row wrap">{p.instrumentIds.map((x: string) => <Link key={x} to={`/assets/${x}`} className="chip">{x.split('.')[1].toUpperCase()}</Link>)}<span className="faint">{p.comments} comments</span></div>
+      <div className="row wrap">{p.instrumentIds.map((x: string) => <Link key={x} to={`/assets/${x}`} className="chip">{symbolOf(x)}</Link>)}<span className="faint">{p.comments} comments</span></div>
     </article>
   );
 }

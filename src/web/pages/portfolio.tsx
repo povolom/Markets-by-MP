@@ -1,3 +1,4 @@
+import { symbolOf } from '../lib/format';
 import { useEffect, useState } from 'react';
 import { api, useApi } from '../lib/api';
 import { Link, useLocation } from '../lib/router';
@@ -15,7 +16,7 @@ export function Portfolio() {
   const [pid, setPid] = useState<string | null>(null);
   useEffect(() => { if (!pid && list.data?.data.length) setPid(list.data.data[0].id); }, [list.data, pid]);
   const [tab, setTab] = useState<Tab>((search.get('tab') as Tab) ?? 'holdings');
-  const [dialog, setDialog] = useState<null | 'new' | 'tx' | 'import' | 'rename'>(null);
+  const [dialog, setDialog] = useState<null | 'new' | 'tx' | 'import' | 'rename' | 'share'>(search.get('share') ? 'share' : null);
   const [name, setName] = useState('');
   const pf = useApi<{ data: any }>(pid ? `/portfolios/${pid}` : null, [pid]);
   const reloadAll = () => { void pf.reload(); void list.reload(); };
@@ -35,7 +36,7 @@ export function Portfolio() {
         <div className="stack-sm"><div className="row wrap"><select className="input" style={{ width: 'auto', fontWeight: 650 }} value={pid ?? ''} onChange={e => setPid(e.target.value)} aria-label="Portfolio">{list.data.data.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select>{current?.kind === 'demo' && <span className="badge demo">Demo portfolio: made-up holdings</span>}{current?.kind === 'manual' && <span className="chip">Manually entered</span>}</div>
           {s && <div className="row wrap" style={{ alignItems: 'baseline' }}><span className="num" style={{ fontSize: 30, fontWeight: 750 }}>{money(s.totalValue, s.baseCurrency)}</span>{s.unrealizedGain && <Change abs={s.unrealizedGain} currency={s.baseCurrency} />}<span className="faint">unrealized</span></div>}
         </div>
-        <div className="row wrap"><button className="btn primary" onClick={() => setDialog('tx')}><Icon name="plus" />Add transaction</button><button className="btn" onClick={() => setDialog('import')}>Import CSV</button><button className="btn ghost" onClick={() => { setName(''); setDialog('new'); }}>New portfolio</button></div>
+        <div className="row wrap"><button className="btn primary" onClick={() => setDialog('tx')}><Icon name="plus" />Add transaction</button><button className="btn" onClick={() => setDialog('import')}>Import CSV</button><button className="btn" onClick={() => setDialog('share')}><Icon name="community" size={16} />Share</button><button className="btn ghost" onClick={() => { setName(''); setDialog('new'); }}>New portfolio</button></div>
       </div>
       {s && s.warnings.map((w: string) => <div key={w} className="notice warn"><Icon name="info" />{w}</div>)}
       <div className="tabs" role="tablist" aria-label="Portfolio sections">{([['holdings', 'Holdings'], ['performance', 'Performance'], ['xray', 'X-Ray'], ['income', 'Income'], ['transactions', 'Transactions']] as const).map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)}>{l}</button>)}</div>
@@ -51,6 +52,7 @@ export function Portfolio() {
       {dialog === 'new' && <NameDialog title="New portfolio" name={name} setName={setName} onClose={() => setDialog(null)} onSave={async () => { const r = await api.post('/portfolios', { name }); setPid(r.data.id); setDialog(null); reloadAll(); }} />}
       {dialog === 'rename' && <NameDialog title="Rename portfolio" name={name} setName={setName} onClose={() => setDialog(null)} onSave={async () => { await api.patch(`/portfolios/${pid}`, { name }); setDialog(null); reloadAll(); }} />}
       {dialog === 'tx' && pid && <TxDialog pid={pid} onClose={() => setDialog(null)} onSaved={() => { setDialog(null); reloadAll(); toast('Transaction recorded.'); }} />}
+      {dialog === 'share' && pid && <ShareDialog pid={pid} onClose={() => setDialog(null)} />}
       {dialog === 'import' && pid && <ImportDialog pid={pid} onClose={() => setDialog(null)} onDone={() => { setDialog(null); reloadAll(); }} />}
     </>
   );
@@ -91,7 +93,7 @@ function Holdings({ d, onAdd }: { d: any; onAdd: () => void }) {
     </>
   );
 }
-function HoldingCell({ id }: { id: string }) { const { data } = useApi<{ data: any }>(`/assets/${id}`, [id]); return <AssetCell inst={data?.data ?? { id, symbol: id.split('.')[1]?.toUpperCase() ?? id, name: '' }} />; }
+function HoldingCell({ id }: { id: string }) { const { data } = useApi<{ data: any }>(`/assets/${id}`, [id]); return <AssetCell inst={data?.data ?? { id, symbol: symbolOf(id) ?? id, name: '' }} />; }
 
 function Performance({ pid }: { pid: string }) {
   const { me } = useMe();
@@ -129,11 +131,11 @@ function XRay({ pid }: { pid: string }) {
       <div className="grid-3">
         <div className="card stat"><span className="label">Largest company exposure</span><span className="value">{x.largestCompanyPct ?? '—'}%</span><span className="faint">Direct plus through funds</span></div>
         <div className="card stat"><span className="label">Concentration index</span><span className="value">{x.concentrationIndex}</span><span className="faint">0 = spread out, 10,000 = one company</span></div>
-        <div className="card stat"><span className="label">Funds looked through</span><span className="value">{x.funds.length}</span><span className="faint">{x.funds.map((f: any) => `${f.instrumentId.split('.')[1].toUpperCase()} ${f.coveragePct}%${f.asOf ? ` as of ${dateFmt(f.asOf)}` : ''}`).join(' · ') || 'None'}</span></div>
+        <div className="card stat"><span className="label">Funds looked through</span><span className="value">{x.funds.length}</span><span className="faint">{x.funds.map((f: any) => `${symbolOf(f.instrumentId)} ${f.coveragePct}%${f.asOf ? ` as of ${dateFmt(f.asOf)}` : ''}`).join(' · ') || 'None'}</span></div>
       </div>
       <div className="card flush"><div className="card-head"><h2>Company exposure</h2><span className="faint">Direct and through funds</span></div>
         <table className="t responsive"><thead><tr><th>Company</th><th className="r">Total</th><th className="r hide-m">Held directly</th><th className="r">Share</th></tr></thead><tbody>{x.companies.slice(0, 15).map((c: any) => <tr key={c.key}><td className={c.instrumentId ? '' : 'faint'}>{c.instrumentId ? <Link to={`/assets/${c.instrumentId}`}>{c.name}</Link> : c.name}</td><td className="r num">{money(c.value)}</td><td className="r num hide-m">{Number(c.directValue) > 0 ? money(c.directValue) : '—'}</td><td className="r num">{c.pct}%</td></tr>)}</tbody></table></div>
-      {x.overlaps.length > 0 && <div className="card stack-sm"><h2>ETF overlap</h2>{x.overlaps.map((o: any) => <div key={o.a + o.b} className="row between small"><span>{o.a.split('.')[1].toUpperCase()} and {o.b.split('.')[1].toUpperCase()}</span><span className="num">{o.overlapPct}% overlap <span className="faint">({o.shared.length} shared companies, based on {o.basedOnCoverage.join('% and ')}% coverage)</span></span></div>)}</div>}
+      {x.overlaps.length > 0 && <div className="card stack-sm"><h2>ETF overlap</h2>{x.overlaps.map((o: any) => <div key={o.a + o.b} className="row between small"><span>{symbolOf(o.a)} and {symbolOf(o.b)}</span><span className="num">{o.overlapPct}% overlap <span className="faint">({o.shared.length} shared companies, based on {o.basedOnCoverage.join('% and ')}% coverage)</span></span></div>)}</div>}
       <div className="grid-2"><Bars title="Sector" rows={x.sectors} /><Bars title="Country" rows={x.countries} /><Bars title="Currency" rows={x.currencies} /><Bars title="Asset class" rows={x.assetClasses} /></div>
       <details className="card"><summary style={{ cursor: 'pointer', fontWeight: 600 }}>How X-Ray works</summary><ul className="muted small">{x.methodology.map((m: string) => <li key={m}>{m}</li>)}</ul></details>
     </>
@@ -150,7 +152,7 @@ function Income({ pid, base }: { pid: string; base: string }) {
     <>
       <div className="grid-2">
         <div className="card stack-sm"><h2>Received</h2>{Object.keys(byYear).length ? Object.entries(byYear).sort().reverse().map(([y, v]) => <div key={y} className="row between"><span>{y}</span><span className="num">{money(v as number, base)}</span></div>) : <p className="muted small">No dividends recorded yet.</p>}</div>
-        <div className="card stack-sm"><h2>Coming up</h2>{d.upcoming.slice(0, 8).map((u: any, i: number) => <div key={i} className="row between small"><span>{u.instrumentId.split('.')[1].toUpperCase()} · ex {dateFmt(u.exDate)}</span><span><span className="num">≈{money(u.estimatedAmount, u.currency)}</span> <span className={`chip ${u.status === 'projected' ? 'warn' : 'green'}`}>{u.status === 'projected' ? 'Projected' : 'Declared'}</span></span></div>)}{!d.upcoming.length && <p className="muted small">Nothing scheduled.</p>}</div>
+        <div className="card stack-sm"><h2>Coming up</h2>{d.upcoming.slice(0, 8).map((u: any, i: number) => <div key={i} className="row between small"><span>{symbolOf(u.instrumentId)} · ex {dateFmt(u.exDate)}</span><span><span className="num">≈{money(u.estimatedAmount, u.currency)}</span> <span className={`chip ${u.status === 'projected' ? 'warn' : 'green'}`}>{u.status === 'projected' ? 'Projected' : 'Declared'}</span></span></div>)}{!d.upcoming.length && <p className="muted small">Nothing scheduled.</p>}</div>
       </div>
       <p className="faint">{d.note} Base currency: {base}.</p>
     </>
@@ -167,7 +169,7 @@ function Transactions({ pid, onChange }: { pid: string; onChange: () => void }) 
       {batches.map(b => <div key={b.id} className="notice"><Icon name="info" /><span>Imported {b.row_count} rows{b.filename ? ` from ${b.filename}` : ''} on {dateFmt(b.created_at)}. <button className="btn sm" onClick={async () => { if (!confirm('Undo this import? Its transactions will be removed.')) return; const r = await api.post(`/imports/${b.id}/revert`); toast(`Removed ${r.removed} transactions.`); void reload(); void imports.reload(); onChange(); }}>Undo import</button></span></div>)}
       <div className="card flush">
         {!data?.data.length ? <Empty title="No transactions" /> : <table className="t responsive"><thead><tr><th>Date</th><th>Type</th><th>Asset</th><th className="r">Units × price</th><th className="r">Amount</th><th /></tr></thead>
-          <tbody>{data.data.map(t => <tr key={t.id}><td>{dateFmt(t.tradeDate)}</td><td style={{ textTransform: 'capitalize' }}>{t.type}{t.importBatchId && <span className="faint"> · imported</span>}</td><td>{t.instrumentId ? t.instrumentId.split('.')[1].toUpperCase() : '—'}</td><td className="r num">{t.quantity ? `${t.quantity}${t.type === 'split' ? '-for-1' : ''}` : ''}{t.price ? ` × ${priceFmt(t.price)}` : t.type === 'buy' || t.type === 'sell' ? ' × unknown' : ''}</td><td className="r num">{t.amount ? money(t.amount, t.currency) : t.price && t.quantity ? money(Number(t.price) * Number(t.quantity), t.currency) : '—'}</td><td className="r"><button className="icon-btn" aria-label="Delete transaction" onClick={async () => { if (!confirm('Delete this transaction?')) return; await api.del(`/portfolios/${pid}/transactions/${t.id}`); void reload(); onChange(); }}><Icon name="trash" size={16} /></button></td></tr>)}</tbody></table>}
+          <tbody>{data.data.map(t => <tr key={t.id}><td>{dateFmt(t.tradeDate)}</td><td style={{ textTransform: 'capitalize' }}>{t.type}{t.importBatchId && <span className="faint"> · imported</span>}</td><td>{t.instrumentId ? symbolOf(t.instrumentId) : '—'}</td><td className="r num">{t.quantity ? `${t.quantity}${t.type === 'split' ? '-for-1' : ''}` : ''}{t.price ? ` × ${priceFmt(t.price)}` : t.type === 'buy' || t.type === 'sell' ? ' × unknown' : ''}</td><td className="r num">{t.amount ? money(t.amount, t.currency) : t.price && t.quantity ? money(Number(t.price) * Number(t.quantity), t.currency) : '—'}</td><td className="r"><button className="icon-btn" aria-label="Delete transaction" onClick={async () => { if (!confirm('Delete this transaction?')) return; await api.del(`/portfolios/${pid}/transactions/${t.id}`); void reload(); onChange(); }}><Icon name="trash" size={16} /></button></td></tr>)}</tbody></table>}
       </div>
     </>
   );
@@ -224,6 +226,31 @@ function ImportDialog({ pid, onClose, onDone }: { pid: string; onClose: () => vo
         <div className="scroll-x" style={{ maxHeight: 280 }}><table className="t"><thead><tr><th>Line</th><th>Status</th><th>Date</th><th>Type</th><th>Symbol</th><th className="r">Qty</th><th className="r">Price</th><th className="r">Amount</th></tr></thead><tbody>{prev.rows.map((r: any) => <tr key={r.line}><td>{r.line}</td><td>{r.status === 'ok' ? <span className="chip green">Ready</span> : <span className="chip warn" title={r.errors.join(' ')}>{r.status === 'duplicate' ? 'Duplicate' : r.errors[0]}</span>}</td><td>{r.tx?.tradeDate ?? ''}</td><td>{r.tx?.type ?? ''}</td><td>{r.tx?.symbol ?? ''}</td><td className="r">{r.tx?.quantity ?? ''}</td><td className="r">{r.tx?.price ?? (r.tx && (r.tx.type === 'buy' || r.tx.type === 'sell') ? 'unknown' : '')}</td><td className="r">{r.tx?.amount ?? ''}</td></tr>)}</tbody></table></div>
       </>}
       {err && <p className="notice warn" role="alert">{err}</p>}
+    </Dialog>
+  );
+}
+
+function ShareDialog({ pid, onClose }: { pid: string; onClose: () => void }) {
+  const toast = useToast(); const { me } = useMe();
+  const { data, reload } = useApi<{ data: any }>(`/portfolios/${pid}/share`, [pid]);
+  const d = data?.data;
+  const [f, set] = useState<any>(null);
+  useEffect(() => { if (d && !f) set({ title: d.title, note: d.note, showHoldings: d.showHoldings, handle: d.handle ?? (me?.displayName ?? '').toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 20) }); }, [d, f, me]);
+  const [err, setErr] = useState('');
+  const save = async () => { setErr(''); try { await api.put(`/portfolios/${pid}/share`, f); toast('Shared. Others now see this portfolio as percentages only.'); await reload(); onClose(); } catch (e: any) { setErr(e.message); } };
+  const stop = async () => { await api.del(`/portfolios/${pid}/share`); toast('No longer shared.'); onClose(); };
+  return (
+    <Dialog title="Share this portfolio" onClose={onClose} wide footer={d?.canShare && !me?.isGuest ? <>{d.shared && <button className="btn danger" onClick={stop}>Stop sharing</button>}<button className="btn ghost" onClick={onClose}>Cancel</button><button className="btn primary" onClick={save}>{d.shared ? 'Update' : 'Share portfolio'}</button></> : <button className="btn" onClick={onClose}>Close</button>}>
+      {!d || !f ? <Loading /> : me?.isGuest ? <div className="notice"><Icon name="info" /><span>Create an account to share a portfolio. <Link to="/signup">Create an account</Link></span></div> : !d.canShare ? <div className="notice warn"><Icon name="info" />{d.reason}</div> : <>
+        <div className="notice green"><Icon name="info" /><span>Others see percentages only: never amounts, balances, cash values or account details. You can stop sharing at any time.</span></div>
+        <div className="grid-2"><label className="field">Title<input className="input" value={f.title} maxLength={60} onChange={e => set({ ...f, title: e.target.value })} /></label>
+          <label className="field">Your handle<input className="input" value={f.handle} maxLength={20} onChange={e => set({ ...f, handle: e.target.value.toLowerCase() })} placeholder="e.g. long_term_mp" /></label></div>
+        <label className="field">A sentence about your approach (optional)<textarea className="input" value={f.note} maxLength={280} onChange={e => set({ ...f, note: e.target.value })} /></label>
+        <label className="check"><input type="checkbox" checked={f.showHoldings} onChange={e => set({ ...f, showHoldings: e.target.checked })} />Show individual holdings (otherwise only your asset-class, sector and country mix)</label>
+        <div className="stack-sm"><h3>What others will see</h3><div className="card" style={{ padding: 14 }}><b>{f.title}</b> <span className="faint">@{f.handle || 'handle'}</span>
+          <div className="stack-sm" style={{ marginTop: 10 }}>{(f.showHoldings ? d.preview.holdings : []).slice(0, 6).map((h: any) => <div key={h.instrumentId} className="row between small"><span>{h.symbol}</span><span className="num">{h.weightPct}%</span></div>)}{!f.showHoldings && <span className="faint">Asset classes: {d.preview.assetClasses.map((c: any) => `${c.key} ${Number(c.pct).toFixed(0)}%`).join(', ')}</span>}</div></div></div>
+        {err && <p className="notice warn" role="alert">{err}</p>}
+      </>}
     </Dialog>
   );
 }

@@ -11,6 +11,7 @@
 | Onboarding (name, base currency, interests) | Implemented | Short and skippable |
 | Profile, theme, data export, account deletion | Implemented | Export is full JSON; deletion cascades through every table |
 | Watchlists: multiple, create/rename/reorder/delete, add/remove, sort/filter, sparklines | Implemented | Cross-device via the API |
+| Search by company name, ticker or nickname | Implemented | Ranked matching with aliases ("google", "coca cola", "royal bank") and typo tolerance; add several assets from one dialog. Demo catalogue covers about 130 instruments |
 | Asset pages: quote, session, chart ranges, raw vs total-return, statistics by asset class, financials, dividends, events, news, related, discussions | Implemented on **demo data** | Indexes marked not purchasable; crypto has no valuation metrics |
 | News | **Demo-only** | Demo headlines, labelled, never used to explain moves. Real news needs a licensed provider. |
 | Portfolio: multiple portfolios, manual transactions, CAD/USD, trade-date FX, dividends, fees, splits, contributions vs gains, missing cost basis | Implemented | Prices are demo data |
@@ -26,7 +27,8 @@
 | Calendar (events + plan/journal reviews), Market Brief | Implemented | Estimated dates labelled |
 | Notifications | Implemented in-app | **Push and email notifications blocked** (no push/email service configured) |
 | Investment Journal | Implemented | Links to assets, plans and transactions |
-| Community | **Demo-only** | Labelled sample discussions and bookmarks. Public posting stays closed until reporting, blocking and moderation run. |
+| Community: shared portfolios | Implemented | Members can share a portfolio under a handle. Others see allocation percentages and top holdings only, never amounts, cash values or transactions. Follow portfolios to keep them in a Following tab. Five labelled sample portfolios ship with the beta |
+| Community: discussions | **Demo-only** | Labelled sample discussions and bookmarks. Public posting stays closed until reporting, blocking and moderation run |
 | Read-only brokerage connections | **Blocked** | No aggregation provider. Wealthsimple/Questrade coverage not verified. No credentials ever collected. |
 | Markets API: public keyless endpoints, private endpoints, OpenAPI, interactive docs, status, changelog, coverage, rate limits, CORS | Implemented | |
 | Production market data | **Blocked** | No licensed provider. The Yahoo adapter is isolated, off, and has no public display or redistribution rights. |

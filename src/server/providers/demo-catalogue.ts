@@ -60,6 +60,92 @@ export const SEEDS: Seed[] = [
   { id: 'fx.eurusd', symbol: 'EURUSD', name: 'Euro / US dollar', cls: 'fx', ex: 'FX', exName: 'Foreign exchange', ccy: 'USD', country: null, sector: null, industry: null, start: 1.08, drift: 0, vol: 0.07, desc: 'US dollars per euro.' },
 ];
 
+
+// More coverage, in a compact form: [symbol, name, exchange, sector, industry, price on 2021-11-15, yield %].
+// Drift and volatility come from the sector so the demo paths behave plausibly.
+type Row = [string, string, 'US' | 'NY' | 'TO' | 'AR', string | null, string | null, number, number?];
+const SECTOR_RISK: Record<string, [number, number]> = {
+  Technology: [0.14, 0.32], 'Communication Services': [0.1, 0.3], 'Consumer Discretionary': [0.09, 0.32], 'Consumer Staples': [0.05, 0.17],
+  'Health Care': [0.07, 0.22], Financials: [0.08, 0.22], Industrials: [0.08, 0.22], Energy: [0.06, 0.3], Materials: [0.06, 0.27],
+  Utilities: [0.04, 0.17], 'Real Estate': [0.04, 0.22],
+};
+const ROWS: Row[] = [
+  ['WMT', 'Walmart Inc.', 'NY', 'Consumer Staples', 'Discount Stores', 47, 1.3], ['HD', 'The Home Depot, Inc.', 'NY', 'Consumer Discretionary', 'Home Improvement Retail', 370, 2.4],
+  ['DIS', 'The Walt Disney Company', 'NY', 'Communication Services', 'Entertainment', 160, 0.8], ['MCD', "McDonald's Corporation", 'NY', 'Consumer Discretionary', 'Restaurants', 250, 2.3],
+  ['NKE', 'NIKE, Inc.', 'NY', 'Consumer Discretionary', 'Footwear & Accessories', 170, 1.5], ['SBUX', 'Starbucks Corporation', 'US', 'Consumer Discretionary', 'Restaurants', 115, 2.4],
+  ['PEP', 'PepsiCo, Inc.', 'US', 'Consumer Staples', 'Beverages', 165, 3.0], ['BAC', 'Bank of America Corporation', 'NY', 'Financials', 'Banks', 46, 2.3],
+  ['WFC', 'Wells Fargo & Company', 'NY', 'Financials', 'Banks', 50, 2.2], ['GS', 'The Goldman Sachs Group, Inc.', 'NY', 'Financials', 'Capital Markets', 400, 2.0],
+  ['MA', 'Mastercard Incorporated', 'NY', 'Financials', 'Credit Services', 340, 0.6], ['PYPL', 'PayPal Holdings, Inc.', 'US', 'Financials', 'Credit Services', 200],
+  ['BRK.B', 'Berkshire Hathaway Inc. (Class B)', 'NY', 'Financials', 'Insurance', 290], ['UNH', 'UnitedHealth Group Incorporated', 'NY', 'Health Care', 'Healthcare Plans', 450, 1.6],
+  ['PFE', 'Pfizer Inc.', 'NY', 'Health Care', 'Drug Manufacturers', 50, 6.0], ['LLY', 'Eli Lilly and Company', 'NY', 'Health Care', 'Drug Manufacturers', 255, 0.7],
+  ['MRK', 'Merck & Co., Inc.', 'NY', 'Health Care', 'Drug Manufacturers', 82, 3.0], ['ABBV', 'AbbVie Inc.', 'NY', 'Health Care', 'Drug Manufacturers', 118, 3.5],
+  ['CVX', 'Chevron Corporation', 'NY', 'Energy', 'Oil & Gas Integrated', 115, 4.2], ['BA', 'The Boeing Company', 'NY', 'Industrials', 'Aerospace & Defense', 210],
+  ['CAT', 'Caterpillar Inc.', 'NY', 'Industrials', 'Farm & Heavy Machinery', 205, 1.6], ['GE', 'GE Aerospace', 'NY', 'Industrials', 'Aerospace & Defense', 105, 0.6],
+  ['UPS', 'United Parcel Service, Inc.', 'NY', 'Industrials', 'Integrated Freight', 210, 5.0], ['T', 'AT&T Inc.', 'NY', 'Communication Services', 'Telecom Services', 25, 5.0],
+  ['VZ', 'Verizon Communications Inc.', 'NY', 'Communication Services', 'Telecom Services', 52, 6.3], ['NEE', 'NextEra Energy, Inc.', 'NY', 'Utilities', 'Utilities', 85, 2.8],
+  ['O', 'Realty Income Corporation', 'NY', 'Real Estate', 'REIT', 70, 5.5], ['ORCL', 'Oracle Corporation', 'NY', 'Technology', 'Software', 95, 1.2],
+  ['CRM', 'Salesforce, Inc.', 'NY', 'Technology', 'Software', 300, 0.6], ['ADBE', 'Adobe Inc.', 'US', 'Technology', 'Software', 660], ['INTC', 'Intel Corporation', 'US', 'Technology', 'Semiconductors', 50, 1.5],
+  ['AVGO', 'Broadcom Inc.', 'US', 'Technology', 'Semiconductors', 55, 1.3], ['QCOM', 'QUALCOMM Incorporated', 'US', 'Technology', 'Semiconductors', 180, 2.0],
+  ['CSCO', 'Cisco Systems, Inc.', 'US', 'Technology', 'Communication Equipment', 56, 2.8], ['IBM', 'International Business Machines Corporation', 'NY', 'Technology', 'IT Services', 118, 3.5],
+  ['UBER', 'Uber Technologies, Inc.', 'NY', 'Technology', 'Software', 44], ['ABNB', 'Airbnb, Inc.', 'US', 'Consumer Discretionary', 'Travel Services', 190],
+  ['SPOT', 'Spotify Technology S.A.', 'NY', 'Communication Services', 'Internet Content', 270], ['PLTR', 'Palantir Technologies Inc.', 'NY', 'Technology', 'Software', 25],
+  ['COIN', 'Coinbase Global, Inc.', 'US', 'Financials', 'Capital Markets', 300], ['SQ', 'Block, Inc.', 'NY', 'Financials', 'Credit Services', 200],
+  ['F', 'Ford Motor Company', 'NY', 'Consumer Discretionary', 'Auto Manufacturers', 19, 4.5], ['GM', 'General Motors Company', 'NY', 'Consumer Discretionary', 'Auto Manufacturers', 60, 1.0],
+  ['TGT', 'Target Corporation', 'NY', 'Consumer Staples', 'Discount Stores', 250, 2.6], ['LULU', 'Lululemon Athletica Inc.', 'US', 'Consumer Discretionary', 'Apparel Retail', 450],
+  ['BNS', 'The Bank of Nova Scotia', 'TO', 'Financials', 'Banks', 85, 6.0], ['BMO', 'Bank of Montreal', 'TO', 'Financials', 'Banks', 135, 4.5],
+  ['CM', 'Canadian Imperial Bank of Commerce', 'TO', 'Financials', 'Banks', 75, 4.8], ['NA', 'National Bank of Canada', 'TO', 'Financials', 'Banks', 100, 3.5],
+  ['MFC', 'Manulife Financial Corporation', 'TO', 'Financials', 'Insurance', 25, 4.5], ['SLF', 'Sun Life Financial Inc.', 'TO', 'Financials', 'Insurance', 70, 4.2],
+  ['BN', 'Brookfield Corporation', 'TO', 'Financials', 'Asset Management', 50, 0.6], ['CP', 'Canadian Pacific Kansas City Limited', 'TO', 'Industrials', 'Railroads', 95, 0.7],
+  ['TRP', 'TC Energy Corporation', 'TO', 'Energy', 'Oil & Gas Midstream', 65, 5.5], ['CNQ', 'Canadian Natural Resources Limited', 'TO', 'Energy', 'Oil & Gas E&P', 28, 4.6],
+  ['CVE', 'Cenovus Energy Inc.', 'TO', 'Energy', 'Oil & Gas Integrated', 16, 3.5], ['T', 'TELUS Corporation', 'TO', 'Communication Services', 'Telecom Services', 29, 7.0],
+  ['RCI.B', 'Rogers Communications Inc. (Class B)', 'TO', 'Communication Services', 'Telecom Services', 60, 3.8], ['ATD', 'Alimentation Couche-Tard Inc.', 'TO', 'Consumer Staples', 'Convenience Stores', 48, 1.0],
+  ['L', 'Loblaw Companies Limited', 'TO', 'Consumer Staples', 'Grocery Stores', 95, 1.2], ['DOL', 'Dollarama Inc.', 'TO', 'Consumer Discretionary', 'Discount Stores', 58, 0.3],
+  ['WCN', 'Waste Connections, Inc.', 'TO', 'Industrials', 'Waste Management', 165, 0.7], ['NTR', 'Nutrien Ltd.', 'TO', 'Materials', 'Agricultural Inputs', 85, 3.8],
+  ['ABX', 'Barrick Gold Corporation', 'TO', 'Materials', 'Gold', 25, 2.3], ['FTS', 'Fortis Inc.', 'TO', 'Utilities', 'Utilities', 55, 4.0],
+  ['WSP', 'WSP Global Inc.', 'TO', 'Industrials', 'Engineering & Construction', 170, 0.6], ['GIB.A', 'CGI Inc. (Class A)', 'TO', 'Technology', 'IT Services', 110],
+  ['OTEX', 'Open Text Corporation', 'TO', 'Technology', 'Software', 63, 2.9], ['QSR', 'Restaurant Brands International Inc.', 'TO', 'Consumer Discretionary', 'Restaurants', 73, 3.2],
+];
+const ETF_ROWS: [string, string, 'US' | 'TO' | 'AR', number, number, number, string][] = [
+  // [symbol, name, exchange, price on 2021-11-15, yield %, expense %, description]
+  ['VEQT', 'Vanguard All-Equity ETF Portfolio', 'TO', 42, 1.7, 0.24, 'All-equity global portfolio in one ETF.'], ['VGRO', 'Vanguard Growth ETF Portfolio', 'TO', 33, 2.0, 0.24, 'About 80% stocks and 20% bonds.'],
+  ['XGRO', 'iShares Core Growth ETF Portfolio', 'TO', 26, 2.0, 0.2, 'About 80% stocks and 20% bonds.'], ['XBAL', 'iShares Core Balanced ETF Portfolio', 'TO', 30, 2.3, 0.2, 'About 60% stocks and 40% bonds.'],
+  ['ZEB', 'BMO Equal Weight Banks Index ETF', 'TO', 38, 4.5, 0.6, 'The big Canadian banks, equally weighted.'], ['XEI', 'iShares S&P/TSX Composite High Dividend Index ETF', 'TO', 26, 5.2, 0.22, 'Higher-yielding Canadian stocks.'],
+  ['ZSP', 'BMO S&P 500 Index ETF', 'TO', 60, 1.1, 0.09, 'Tracks the S&P 500, in Canadian dollars.'], ['XUS', 'iShares Core S&P 500 Index ETF', 'TO', 50, 1.1, 0.1, 'Tracks the S&P 500, in Canadian dollars.'],
+  ['SPY', 'SPDR S&P 500 ETF Trust', 'AR', 465, 1.3, 0.09, 'The oldest S&P 500 ETF.'], ['IVV', 'iShares Core S&P 500 ETF', 'AR', 468, 1.3, 0.03, 'Tracks the S&P 500.'],
+  ['VUG', 'Vanguard Growth ETF', 'AR', 320, 0.5, 0.04, 'Large US growth companies.'], ['VYM', 'Vanguard High Dividend Yield ETF', 'AR', 110, 2.9, 0.06, 'US companies with higher dividends.'],
+  ['VXUS', 'Vanguard Total International Stock ETF', 'US', 64, 3.0, 0.07, 'Stocks outside the US.'], ['BND', 'Vanguard Total Bond Market ETF', 'US', 85, 3.4, 0.03, 'US investment-grade bonds.'],
+  ['GLD', 'SPDR Gold Shares', 'AR', 175, 0, 0.4, 'Tracks the price of gold.'], ['ARKK', 'ARK Innovation ETF', 'AR', 110, 0, 0.75, 'Actively managed "disruptive innovation" stocks.'],
+];
+const EXT: Record<string, { ex: string; exName: string; ccy: string; country: string }> = { US, NY, TO, AR };
+for (const [sym, name, ex, sector, industry, start, y] of ROWS) {
+  const e = EXT[ex]; const id = `${e.ex.toLowerCase()}.${sym.toLowerCase()}`;
+  if (SEEDS.some(x => x.id === id)) continue;
+  const [drift, vol] = SECTOR_RISK[sector ?? ''] ?? [0.07, 0.25];
+  SEEDS.push({ id, symbol: sym, name, cls: 'stock', ...e, sector, industry, start, drift, vol, yieldPct: y, payMonths: y ? Q : undefined, marketCapB: Math.round(start * 1.2), pe: 18, revenueB: Math.round(start / 4), desc: `${name}. Demo profile.` });
+}
+for (const [sym, name, ex, start, y, expense, desc] of ETF_ROWS) {
+  const e = EXT[ex]; const id = `${e.ex.toLowerCase()}.${sym.toLowerCase()}`;
+  SEEDS.push({ id, symbol: sym, name, cls: 'etf', ...e, sector: null, industry: null, start, drift: sym === 'BND' ? 0.005 : sym === 'GLD' ? 0.08 : sym === 'ARKK' ? 0 : 0.08, vol: sym === 'BND' ? 0.06 : sym === 'ARKK' ? 0.5 : 0.14, yieldPct: y || undefined, payMonths: y ? Q : undefined, expense, desc });
+}
+SEEDS.push(
+  { id: 'crypto.xrp-usd', symbol: 'XRP-USD', name: 'XRP', cls: 'crypto', ex: 'CRYPTO', exName: 'Crypto (24/7, composite)', ccy: 'USD', country: null, sector: null, industry: null, start: 1.1, drift: 0.15, vol: 0.8, desc: 'The XRP Ledger\'s native token.' },
+  { id: 'crypto.doge-usd', symbol: 'DOGE-USD', name: 'Dogecoin', cls: 'crypto', ex: 'CRYPTO', exName: 'Crypto (24/7, composite)', ccy: 'USD', country: null, sector: null, industry: null, start: 0.23, drift: 0.05, vol: 0.95, desc: 'A cryptocurrency that started as a joke.' },
+  { id: 'index.dji', symbol: 'DJI', name: 'Dow Jones Industrial Average', cls: 'index', ex: 'INDEX', exName: 'Index (not directly purchasable)', ccy: 'USD', country: 'US', sector: null, industry: null, start: 35000, drift: 0.07, vol: 0.14, desc: '30 large US companies. Not directly purchasable.' },
+  { id: 'fx.gbpusd', symbol: 'GBPUSD', name: 'British pound / US dollar', cls: 'fx', ex: 'FX', exName: 'Foreign exchange', ccy: 'USD', country: null, sector: null, industry: null, start: 1.34, drift: 0, vol: 0.08, desc: 'US dollars per British pound.' },
+);
+
+/** Other names people search by. */
+export const ALIASES: Record<string, string[]> = {
+  'xnas.googl': ['google', 'youtube'], 'xnas.meta': ['facebook', 'instagram', 'whatsapp'], 'xnys.ko': ['coke', 'coca cola'], 'xtse.ry': ['rbc', 'royal bank'],
+  'xtse.td': ['td bank', 'toronto dominion'], 'xtse.bns': ['scotiabank', 'scotia'], 'xtse.bmo': ['bank of montreal'], 'xtse.cm': ['cibc'], 'xtse.bce': ['bell'],
+  'xtse.cnr': ['cn rail', 'canadian national'], 'xtse.cp': ['cp rail', 'cpkc'], 'xtse.atd': ['couche tard', 'circle k'], 'xtse.l': ['loblaws', 'shoppers drug mart'],
+  'xtse.qsr': ['tim hortons', 'burger king'], 'xtse.rci.b': ['rogers'], 'xtse.t': ['telus'], 'xnys.brk.b': ['berkshire', 'warren buffett'], 'xnys.ge': ['general electric'],
+  'xnys.sq': ['square', 'cash app'], 'xnas.amzn': ['aws', 'amazon web services'], 'xnas.aapl': ['iphone'], 'xnas.msft': ['windows', 'xbox', 'azure'],
+  'index.spx': ['s&p 500', 'sp500', 's and p'], 'index.ixic': ['nasdaq'], 'index.tsx': ['tsx', 'toronto stock exchange'], 'index.dji': ['dow', 'dow jones'],
+  'arcx.voo': ['s&p 500 etf'], 'xtse.vfv': ['s&p 500 cad'], 'crypto.btc-usd': ['btc'], 'crypto.eth-usd': ['eth', 'ether'], 'crypto.sol-usd': ['sol'],
+  'arcx.gld': ['gold'], 'fx.usdcad': ['loonie', 'canadian dollar', 'usd cad'],
+};
+
 export function toInstrument(s: Seed): Instrument {
   const tz = s.cls === 'crypto' ? 'UTC' : s.ex === 'XTSE' || s.ex === 'FUND' ? 'America/Toronto' : 'America/New_York';
   return {

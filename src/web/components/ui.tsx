@@ -32,8 +32,11 @@ export function Icon({ name, size = 18, title }: { name: keyof typeof P | string
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden={title ? undefined : true} role={title ? 'img' : undefined}>{title && <title>{title}</title>}<path d={P[name] ?? P.info} /></svg>;
 }
 
-export function Wordmark({ to = '/', beta = true }: { to?: string; beta?: boolean }) {
-  return <Link to={to} className="wordmark" aria-label="Markets by MP, home"><b>markets</b><span>by MP</span>{beta && <span className="badge" style={{ alignSelf: 'center' }}>Beta</span>}</Link>;
+export function Logo({ size = 30 }: { size?: number }) {
+  return <img src="/icons/logo.png" width={size} height={size} alt="" className="logo-mark" style={{ width: size, height: size }} />;
+}
+export function Wordmark({ to = '/', beta = true, compact }: { to?: string; beta?: boolean; compact?: boolean }) {
+  return <Link to={to} className="wordmark" aria-label="Markets by MP, home"><Logo /><span className="wm-text"><b>markets</b><span>by MP</span></span>{beta && !compact && <span className="badge" style={{ alignSelf: 'center' }}>Beta</span>}</Link>;
 }
 
 /** Price change shown with a sign, an arrow and words for screen readers, so colour is never the only cue. */
