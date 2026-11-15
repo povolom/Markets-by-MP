@@ -7398,6 +7398,80 @@
     }
    }
   },
+  "/api/v1/data-keys/alphavantage": {
+   "put": {
+    "tags": [
+     "Account"
+    ],
+    "summary": "Connect your own free Alpha Vantage key: TSX and US daily prices (about 25 calls a day)",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "apiKey": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9]{8,32}$"
+         }
+        },
+        "required": [
+         "apiKey"
+        ]
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Connect your own free Alpha Vantage key: TSX and US daily prices (about 25 calls a day)",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/data-keys/{provider}": {
    "delete": {
     "tags": [

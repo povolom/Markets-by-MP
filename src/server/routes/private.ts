@@ -16,6 +16,7 @@ import { listConnections, removeConnection, saveKey } from '../data-keys';
 import { verifyAlpaca } from '../providers/alpaca';
 import { verifyEodhd } from '../providers/eodhd';
 import { redeemQuestrade } from '../providers/questrade';
+import { verifyAlphaVantage } from '../providers/alphavantage';
 import { SAMPLE_PORTFOLIOS, sampleView, sharedRow, sharedView, viewerHoldings } from '../community';
 import * as S from '../schemas';
 
@@ -560,6 +561,16 @@ export function privateRoutes(market: (c?: any) => Market) {
     if (session === 'unavailable') throw new ApiError(502, 'upstream_error', 'Couldn\'t reach Questrade to check the token. Try again in a minute.');
     await saveKey(c.env.DB, c.env.DATA_KEY_SECRET ?? c.env.BETTER_AUTH_SECRET, u, 'questrade', session, token.slice(-4), { covers: 'Canadian and US stocks and ETFs' });
     return out(c, { data: (await listConnections(c.env.DB, u)).find(x => x.provider === 'questrade') });
+  });
+  app.openapi(route('put', '/data-keys/alphavantage', 'Account', 'Connect your own free Alpha Vantage key: TSX and US daily prices (about 25 calls a day)', { body: { content: { 'application/json': { schema: z.object({ apiKey: z.string().trim().regex(/^[A-Za-z0-9]{8,32}$/, 'That doesn\'t look like an Alpha Vantage key.') }) } } } }), async c => {
+    const u = uid(c);
+    if (c.get('isAnonymous')) throw new ApiError(403, 'forbidden', 'Create an account first. Demo workspaces can\'t store data keys.');
+    const { apiKey } = c.req.valid('json');
+    const check = c.env.ENVIRONMENT === 'test' && apiKey.startsWith('TEST') ? 'ok' : await verifyAlphaVantage(apiKey);
+    if (check === 'invalid') throw new ApiError(400, 'bad_request', 'Alpha Vantage didn\'t accept that key. Copy it from the email or page Alpha Vantage showed when you claimed it.');
+    if (check === 'unavailable') throw new ApiError(502, 'upstream_error', 'Couldn\'t reach Alpha Vantage to check the key. Try again in a minute.');
+    await saveKey(c.env.DB, c.env.DATA_KEY_SECRET ?? c.env.BETTER_AUTH_SECRET, u, 'alphavantage', { apiKey }, apiKey.slice(-4), { covers: 'TSX, TSX Venture and US daily prices', dailyLimit: 25, limitedToday: check === 'limited' });
+    return out(c, { data: (await listConnections(c.env.DB, u)).find(x => x.provider === 'alphavantage') });
   });
   app.openapi(route('delete', '/data-keys/{provider}', 'Account', 'Disconnect a data key', { params: IdParam('provider') }), async c => { await removeConnection(c.env.DB, uid(c), c.req.valid('param').provider); return out(c, { ok: true }); });
 

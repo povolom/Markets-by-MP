@@ -4,7 +4,7 @@ import { dateFmt } from '../lib/format';
 import { Link } from '../lib/router';
 import { Icon, useToast } from './ui';
 
-interface Conn { provider: 'eodhd' | 'alpaca' | 'questrade'; hint: string; status: string; createdAt: string; meta: { plan?: string | null; dailyLimit?: number | null; covers?: string } | null }
+interface Conn { provider: 'eodhd' | 'alpaca' | 'questrade' | 'alphavantage'; hint: string; status: string; createdAt: string; meta: { plan?: string | null; dailyLimit?: number | null; covers?: string } | null }
 
 /** Connect your own data key. One EODHD key covers US and Canadian stocks, ETFs and indexes; a free Alpaca
  * key covers US only. Either way the key is encrypted and used only for you. */
@@ -12,8 +12,8 @@ export function DataKeys({ guest }: { guest: boolean }) {
   const toast = useToast();
   const conns = useApi<{ data: Conn[] }>(guest ? null : '/data-keys');
   const list = conns.data?.data ?? [];
-  const eodhd = list.find(c => c.provider === 'eodhd'), alpaca = list.find(c => c.provider === 'alpaca'), questrade = list.find(c => c.provider === 'questrade');
-  const [form, setForm] = useState<null | 'eodhd' | 'alpaca' | 'questrade'>(null);
+  const eodhd = list.find(c => c.provider === 'eodhd'), alpaca = list.find(c => c.provider === 'alpaca'), questrade = list.find(c => c.provider === 'questrade'), av = list.find(c => c.provider === 'alphavantage');
+  const [form, setForm] = useState<null | 'eodhd' | 'alpaca' | 'questrade' | 'alphavantage'>(null);
   const ref = useRef<HTMLElement>(null);
   useEffect(() => { if (location.hash === '#data') ref.current?.scrollIntoView({ block: 'start' }); }, []);
   const disconnect = async (p: string) => { await api.del(`/data-keys/${p}`); conns.reload(); toast('Disconnected. Your key was deleted.'); };
@@ -40,6 +40,7 @@ export function DataKeys({ guest }: { guest: boolean }) {
               <div className="conn-main">
                 <b>{NAMES[c.provider]}</b>
                 <span className="faint">Key •••• {c.hint} · {c.meta?.covers ?? ''} · connected {dateFmt(c.createdAt)}</span>
+                {c.provider === 'alphavantage' && <p className="faint">Free plan: about 25 calls a day. Markets fetches each Canadian stock once a day and never spends calls on scheduled checks.</p>}
                 {c.provider === 'eodhd' && c.meta?.dailyLimit != null && c.meta.dailyLimit <= 100 && (
                   <p className="notice warn small"><Icon name="info" size={15} /><span>This is EODHD's free plan: {c.meta.dailyLimit} calls a day. That's enough to try it, but a watchlist uses it up quickly, and scheduled dip checks are paused to save your calls. EODHD's EOD + Intraday "All World Extended" plan covers everyday use.</span></p>
                 )}
@@ -49,16 +50,18 @@ export function DataKeys({ guest }: { guest: boolean }) {
           ))}
           {list.filter(c => c.status === 'invalid').map(c => <div key={c.provider} className="notice warn"><Icon name="info" /><span>{NAMES[c.provider]} stopped accepting your saved key. <button className="linkish" onClick={() => setForm(c.provider)}>Paste a new one</button></span></div>)}
 
-          {!(questrade && alpaca) && !form && (
+          {!(questrade && alpaca) && !(alpaca && av) && !form && (
             <div className="provider-grid">
               {!questrade && <ProviderCard tag="Free · Canada + US" title="Questrade" points={['TSX, TSX Venture and US stocks and ETFs', 'No daily limit', 'For Questrade customers (any account)']} cta="Connect Questrade" onClick={() => setForm('questrade')} recommended />}
               {!alpaca && <ProviderCard tag="Free · US" title="Alpaca" points={['Every US stock and ETF, live through the day', 'No daily limit', 'Anyone can open a free paper account']} cta="Connect Alpaca" onClick={() => setForm('alpaca')} recommended />}
+              {!av && !questrade && <ProviderCard tag="Free · Canada + US, daily" title="Alpha Vantage" points={['TSX, TSX Venture and US daily closing prices and history', 'About 25 calls a day: Markets fetches each stock once a day', 'Anyone can claim a free key in seconds']} cta="Connect Alpha Vantage" onClick={() => setForm('alphavantage')} recommended />}
               {!eodhd && <ProviderCard tag="Paid · One key, every exchange" title="EODHD" points={['US, Canadian and other exchanges, plus main indexes and real dividends', 'Delayed about 15 minutes', 'Free plan is only 20 calls a day; paid plans from about €20/month']} cta="Connect EODHD" onClick={() => setForm('eodhd')} />}
             </div>
           )}
-          {!form && <p className="muted small">Best free setup: <b>Questrade</b> if you have it (covers Canada and the US with one key). Otherwise <b>Alpaca</b> for US stocks; Canadian stocks then show prices for the core list, and big Canadian companies link to their New York listing.</p>}
+          {!form && <p className="muted small">Best free setup: <b>Questrade</b> if you have it (live Canada and US, one key). Otherwise <b>Alpaca</b> for live US prices plus <b>Alpha Vantage</b> for Canadian daily prices. Markets picks the best key for each stock automatically.</p>}
           {form === 'questrade' && <QuestradeForm onDone={() => done('Connected. Real Canadian and US prices are on.')} onCancel={() => setForm(null)} />}
           {form === 'eodhd' && <EodhdForm onDone={() => done('Connected. Real US and Canadian prices are on.')} onCancel={() => setForm(null)} />}
+          {form === 'alphavantage' && <AlphaVantageForm onDone={() => done('Connected. Canadian daily prices are on.')} onCancel={() => setForm(null)} />}
           {form === 'alpaca' && <AlpacaForm onDone={() => done('Connected. Real US stock prices are on.')} onCancel={() => setForm(null)} />}
 
           <p className="faint">Keys are encrypted on Markets' server, never sent back to your browser, and only used to fetch prices for you. Disconnecting deletes them.</p>
@@ -68,7 +71,7 @@ export function DataKeys({ guest }: { guest: boolean }) {
   );
 }
 
-const NAMES: Record<string, string> = { eodhd: 'EODHD', alpaca: 'Alpaca', questrade: 'Questrade' };
+const NAMES: Record<string, string> = { eodhd: 'EODHD', alpaca: 'Alpaca', questrade: 'Questrade', alphavantage: 'Alpha Vantage' };
 
 function ProviderCard({ tag, title, points, cta, onClick, recommended }: { tag: string; title: string; points: string[]; cta: string; onClick: () => void; recommended?: boolean }) {
   return (
@@ -97,6 +100,27 @@ function QuestradeForm({ onDone, onCancel }: { onDone: () => void; onCancel: () 
         <label className="field">Questrade token<input className="input mono" type="password" autoComplete="off" spellCheck={false} value={token} onChange={e => setToken(e.target.value)} required /></label>
         {err && <p className="notice warn" role="alert">{err}</p>}
         <div className="row wrap"><button className="btn primary" disabled={busy || token.trim().length < 10}>{busy ? 'Signing in to Questrade…' : 'Connect'}</button><button type="button" className="btn ghost" onClick={onCancel}>Cancel</button></div>
+      </form>
+    </div>
+  );
+}
+
+function AlphaVantageForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => void }) {
+  const [apiKey, setKey] = useState(''); const [busy, setBusy] = useState(false); const [err, setErr] = useState('');
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault(); setBusy(true); setErr('');
+    try { await api.put('/data-keys/alphavantage', { apiKey: apiKey.trim() }); onDone(); } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
+  };
+  return (
+    <div className="provider-card">
+      <ol className="steps">
+        <li><b>Claim a free key</b> from Alpha Vantage. It takes a few seconds. <a href="https://www.alphavantage.co/support/#api-key" target="_blank" rel="noreferrer">Get a free key <Icon name="external" size={13} /></a></li>
+        <li><b>Paste it here.</b> Markets uses one call per stock per day, so about 25 stocks a day get real daily prices. Prices are end of day, not live.</li>
+      </ol>
+      <form className="datakeys-form single" onSubmit={submit}>
+        <label className="field">Alpha Vantage API key<input className="input mono" type="password" autoComplete="off" spellCheck={false} value={apiKey} onChange={e => setKey(e.target.value)} required /></label>
+        {err && <p className="notice warn" role="alert">{err}</p>}
+        <div className="row wrap"><button className="btn primary" disabled={busy || apiKey.trim().length < 8}>{busy ? 'Checking with Alpha Vantage…' : 'Connect'}</button><button type="button" className="btn ghost" onClick={onCancel}>Cancel</button></div>
       </form>
     </div>
   );

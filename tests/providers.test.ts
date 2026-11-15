@@ -31,6 +31,11 @@ beforeAll(() => setFetcher(async url => {
     if (url.includes('/v1/markets/quotes')) return json({ quotes: [{ symbol: url.includes('ids=101') ? 'GSY.TO' : 'SOFI', symbolId: url.includes('ids=101') ? 101 : 202, lastTradePrice: url.includes('ids=101') ? 183.6 : 21.5, lastTradeTime: new Date().toISOString(), highPrice: 0, lowPrice: 0, delay: 15 }] });
     if (url.includes('/v1/markets/candles/')) return json({ candles: Array.from({ length: 30 }, (_, i) => ({ start: day(40 - i).toISOString(), end: day(40 - i).toISOString(), open: 170, high: 185, low: 168, close: 170 + i / 2, volume: 1e5 })) });
   }
+  if (url.includes('alphavantage.co')) {
+    const series: Record<string, unknown> = {};
+    for (let i = 0; i < 30; i++) series[day(40 - i).toISOString().slice(0, 10)] = { '1. open': '30', '2. high': '31', '3. low': '29', '4. close': String(30 + i / 10), '5. volume': '1000' };
+    return json({ 'Meta Data': {}, 'Time Series (Daily)': series });
+  }
   if (url.includes('frankfurter')) {
     const rates: Record<string, Record<string, number>> = {};
     for (let i = 10; i >= 1; i--) rates[day(i).toISOString().slice(0, 10)] = { CAD: 1.40 + i / 1000, EUR: 0.9, GBP: 0.78, JPY: 150, AUD: 1.5, CHF: 0.88, MXN: 18, CNY: 7.2, INR: 84 };
@@ -166,5 +171,17 @@ describe('Questrade and smart routing', () => {
   it('links TSX companies to their New York listing', async () => {
     const r = await get('/api/v1/assets/xtse.cnr', true);
     expect(r.body.data.otherListings).toContain('xnys.cni');
+  });
+});
+
+describe('Alpha Vantage', () => {
+  beforeAll(() => { addUser(env.DB as any, 'av'); });
+  it('serves Canadian daily prices from one call per stock per day', async () => {
+    const put = await send('PUT', '/api/v1/data-keys/alphavantage', 'av', { apiKey: 'TESTAVKEY123' });
+    expect(put.status).toBe(200);
+    const q = await get('/api/v1/assets/xtse.gsy/quote', true, 'av');
+    expect(q.status).toBe(200);
+    expect(q.body.data).toMatchObject({ price: '32.90', previousClose: '32.80', currency: 'CAD', meta: { provider: 'alphavantage' } });
+    expect((await get('/api/v1/assets/xtse.gsy/history?range=3M', true, 'av')).body.data.length).toBeGreaterThan(20);
   });
 });

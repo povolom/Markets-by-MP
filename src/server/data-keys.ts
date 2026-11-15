@@ -4,8 +4,9 @@ import { all, first, run } from './db';
 export interface AlpacaCreds { keyId: string; secret: string }
 export interface EodhdCreds { token: string }
 export interface QuestradeCreds { refreshToken: string; accessToken: string | null; apiServer: string | null; expiresAt: number }
-export interface Keys { alpaca?: AlpacaCreds; eodhd?: EodhdCreds & { dailyLimit: number | null }; questrade?: QuestradeCreds }
-export type Provider = 'alpaca' | 'eodhd' | 'questrade';
+export interface AlphaVantageCreds { apiKey: string }
+export interface Keys { alpaca?: AlpacaCreds; eodhd?: EodhdCreds & { dailyLimit: number | null }; questrade?: QuestradeCreds; alphavantage?: AlphaVantageCreds }
+export type Provider = 'alpaca' | 'eodhd' | 'questrade' | 'alphavantage';
 export interface Connection { provider: Provider; hint: string; status: string; createdAt: string; checkedAt: string | null; meta: Record<string, unknown> | null }
 
 const enc = new TextEncoder(), dec = new TextDecoder();
@@ -44,6 +45,7 @@ export async function userKeys(db: D1Database, secret: string, userId: string): 
     if (r.provider === 'alpaca') keys.alpaca = creds;
     if (r.provider === 'eodhd') keys.eodhd = { ...creds, dailyLimit: (r.meta ? JSON.parse(r.meta).dailyLimit : null) ?? null };
     if (r.provider === 'questrade') keys.questrade = creds;
+    if (r.provider === 'alphavantage') keys.alphavantage = creds;
   }
   if (cache.size > 2000) cache.clear();
   cache.set(userId, { until: Date.now() + 60_000, keys });
@@ -51,7 +53,7 @@ export async function userKeys(db: D1Database, secret: string, userId: string): 
 }
 export const forgetKeys = (userId: string) => cache.delete(userId);
 
-export async function saveKey(db: D1Database, secret: string, userId: string, provider: Provider, creds: AlpacaCreds | EodhdCreds | QuestradeCreds, hint: string, meta: Record<string, unknown> | null = null) {
+export async function saveKey(db: D1Database, secret: string, userId: string, provider: Provider, creds: AlpacaCreds | EodhdCreds | QuestradeCreds | AlphaVantageCreds, hint: string, meta: Record<string, unknown> | null = null) {
   const { ciphertext, iv } = await seal(secret, creds);
   await run(db, `INSERT INTO data_connections (user_id, provider, ciphertext, iv, hint, status, checked_at, meta) VALUES (?, ?, ?, ?, ?, 'ok', strftime('%Y-%m-%dT%H:%M:%fZ','now'), ?)
     ON CONFLICT(user_id, provider) DO UPDATE SET ciphertext = excluded.ciphertext, iv = excluded.iv, hint = excluded.hint, status = 'ok', checked_at = excluded.checked_at, meta = excluded.meta`, userId, provider, ciphertext, iv, hint, meta ? JSON.stringify(meta) : null);

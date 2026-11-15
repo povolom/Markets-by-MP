@@ -10,6 +10,7 @@ import { getRegistry, withPersonal, type Registry } from './providers/registry';
 import { alpacaInfo, createAlpaca } from './providers/alpaca';
 import { createEodhd, eodhdInfo } from './providers/eodhd';
 import { createQuestrade, questradeInfo } from './providers/questrade';
+import { alphaVantageInfo, createAlphaVantage } from './providers/alphavantage';
 import { loadQuestrade, markInvalid, updateQuestrade, userKeys } from './data-keys';
 import { CHANGELOG, publicRoutes } from './routes/public';
 import { privateRoutes } from './routes/private';
@@ -39,15 +40,17 @@ export function createApi(resolveSession: SessionResolver) {
     // Scheduled alert checks skip keys on very small daily allowances (EODHD's free plan), so the cron
     // doesn't use up calls the person needs for browsing. "Check my rules now" still uses the key.
     const eodhd = keys.eodhd && !(opts.scheduled && keys.eodhd.dailyLimit != null && keys.eodhd.dailyLimit <= 100) ? keys.eodhd : undefined;
-    if (!keys.alpaca && !eodhd && !keys.questrade) { personal.delete(userId); return ms.app; }
-    const sig = `${keys.alpaca?.keyId ?? ''}|${eodhd?.token.slice(-8) ?? ''}|${keys.questrade ? 'q' : ''}`;
+    // Alpha Vantage's free plan (about 25 calls a day) is never spent by scheduled checks.
+    const av = opts.scheduled ? undefined : keys.alphavantage;
+    if (!keys.alpaca && !eodhd && !keys.questrade && !av) { personal.delete(userId); return ms.app; }
+    const sig = `${keys.alpaca?.keyId ?? ''}|${eodhd?.token.slice(-8) ?? ''}|${keys.questrade ? 'q' : ''}|${av?.apiKey.slice(-6) ?? ''}`;
     const hit = personal.get(userId); if (hit && hit.sig === sig) return hit.m;
     const r = ms.registry;
-    const reset = (p: 'alpaca' | 'eodhd' | 'questrade') => () => { void markInvalid(env.DB, userId, p); personal.delete(userId); };
+    const reset = (p: 'alpaca' | 'eodhd' | 'questrade' | 'alphavantage') => () => { void markInvalid(env.DB, userId, p); personal.delete(userId); };
     const secret = env.DATA_KEY_SECRET ?? env.BETTER_AUTH_SECRET;
     const questrade = keys.questrade && createQuestrade(userId, keys.questrade, { persist: s => updateQuestrade(env.DB, secret, userId, s), reload: () => loadQuestrade(env.DB, secret, userId), onInvalid: reset('questrade') });
-    const m = createMarket(withPersonal(r.market, { alpaca: keys.alpaca && createAlpaca(keys.alpaca, reset('alpaca')), eodhd: eodhd && createEodhd(eodhd.token, reset('eodhd')), questrade }),
-      [...r.providers, ...(keys.alpaca ? [alpacaInfo] : []), ...(eodhd ? [eodhdInfo] : []), ...(questrade ? [questradeInfo] : [])], { audience: 'app', sourceOf: id => r.sourceOf(id), namespace: `u:${userId}` });
+    const m = createMarket(withPersonal(r.market, { alpaca: keys.alpaca && createAlpaca(keys.alpaca, reset('alpaca')), eodhd: eodhd && createEodhd(eodhd.token, reset('eodhd')), questrade, alphavantage: av && createAlphaVantage(av.apiKey, reset('alphavantage')) }),
+      [...r.providers, ...(av ? [alphaVantageInfo] : []), ...(keys.alpaca ? [alpacaInfo] : []), ...(eodhd ? [eodhdInfo] : []), ...(questrade ? [questradeInfo] : [])], { audience: 'app', sourceOf: id => r.sourceOf(id), namespace: `u:${userId}` });
     if (personal.size > 500) personal.clear();
     if (!opts.scheduled) personal.set(userId, { sig, m });
     return m;

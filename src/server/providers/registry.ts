@@ -9,6 +9,7 @@ import { ApiError } from '../http';
 import { US_MICS, type Alpaca } from './alpaca';
 import { eodhdTicker, type Eodhd } from './eodhd';
 import { questradeSymbol, type Questrade } from './questrade';
+import { alphaVantageSymbol, type AlphaVantage } from './alphavantage';
 import { createCoinGecko } from './coingecko';
 import { createDemoProvider } from './demo';
 import { createEcb } from './ecb';
@@ -85,12 +86,12 @@ export function lockedError(inst: Instrument) {
 }
 
 /** Each asset goes to the best key the person has connected:
- *   TSX and TSX Venture: Questrade (free, no daily cap), then EODHD.
- *   US stocks and ETFs: Alpaca (free, generous limits), then Questrade, then EODHD.
+ *   TSX and TSX Venture: Questrade (free, no daily cap), then EODHD, then Alpha Vantage (free, ~25 calls a day).
+ *   US stocks and ETFs: Alpaca (free, generous limits), then Questrade, then EODHD, then Alpha Vantage.
  *   Main indexes: EODHD.
  * Everything else comes from the shared providers (crypto, FX, curated demo). */
-export function withPersonal(base: MarketDataProvider, keys: { alpaca?: Alpaca; eodhd?: Eodhd; questrade?: Questrade }): MarketDataProvider {
-  type Route = { kind: 'eodhd'; inst: Instrument; tk: string } | { kind: 'alpaca'; inst: Instrument } | { kind: 'questrade'; inst: Instrument; name: string } | null;
+export function withPersonal(base: MarketDataProvider, keys: { alpaca?: Alpaca; eodhd?: Eodhd; questrade?: Questrade; alphavantage?: AlphaVantage }): MarketDataProvider {
+  type Route = { kind: 'eodhd'; inst: Instrument; tk: string } | { kind: 'alpaca'; inst: Instrument } | { kind: 'questrade'; inst: Instrument; name: string } | { kind: 'av'; inst: Instrument; sym: string } | null;
   const route = (id: string): Route => {
     const inst = ENTRIES.get(id)?.inst; if (!inst) return null;
     const canada = inst.exchange === 'XTSE' || inst.exchange === 'XTSX';
@@ -101,21 +102,23 @@ export function withPersonal(base: MarketDataProvider, keys: { alpaca?: Alpaca; 
     if (us && keys.alpaca) return { kind: 'alpaca', inst };
     if (us && qName) return { kind: 'questrade', inst, name: qName };
     if (tk) return { kind: 'eodhd', inst, tk };
+    const av = keys.alphavantage ? alphaVantageSymbol(inst) : null;
+    if (av) return { kind: 'av', inst, sym: av };
     return null;
   };
-  const bars = (r: NonNullable<Route>, now: Date) => r.kind === 'eodhd' ? keys.eodhd!.history(r.inst, r.tk, now) : r.kind === 'questrade' ? keys.questrade!.history(r.inst, r.name, now) : keys.alpaca!.history(r.inst, now);
+  const bars = (r: NonNullable<Route>, now: Date) => r.kind === 'eodhd' ? keys.eodhd!.history(r.inst, r.tk, now) : r.kind === 'questrade' ? keys.questrade!.history(r.inst, r.name, now) : r.kind === 'av' ? keys.alphavantage!.history(r.inst, r.sym, now) : keys.alpaca!.history(r.inst, now);
   return {
     ...base,
     info: { ...base.info, provenance: 'production' },
     async quote(id, now) {
       const r = route(id); if (!r) return base.quote(id, now);
-      return r.kind === 'eodhd' ? keys.eodhd!.quote(r.inst, r.tk, now) : r.kind === 'questrade' ? keys.questrade!.quote(r.inst, r.name, now) : keys.alpaca!.quote(r.inst, now);
+      return r.kind === 'eodhd' ? keys.eodhd!.quote(r.inst, r.tk, now) : r.kind === 'questrade' ? keys.questrade!.quote(r.inst, r.name, now) : r.kind === 'av' ? keys.alphavantage!.quote(r.inst, r.sym, now) : keys.alpaca!.quote(r.inst, now);
     },
     async history(id) { const r = route(id); return r ? bars(r, new Date()) : base.history(id); },
     async statistics(id, now) {
       const r = route(id); if (!r) return base.statistics(id, now);
       const b = await bars(r, now);
-      return r.kind === 'eodhd' ? keys.eodhd!.statistics(r.inst, b) : r.kind === 'questrade' ? keys.questrade!.statistics(r.inst, b) : keys.alpaca!.statistics(r.inst, b, b.at(-1) ? `${b.at(-1)!.date}T21:00:00Z` : null);
+      return r.kind === 'eodhd' ? keys.eodhd!.statistics(r.inst, b) : r.kind === 'questrade' ? keys.questrade!.statistics(r.inst, b) : r.kind === 'av' ? keys.alphavantage!.statistics(r.inst, b) : keys.alpaca!.statistics(r.inst, b, b.at(-1) ? `${b.at(-1)!.date}T21:00:00Z` : null);
     },
     async dividends(id, now) {
       const r = route(id); if (!r) return base.dividends(id, now);
