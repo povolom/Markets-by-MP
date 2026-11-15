@@ -130,7 +130,7 @@ export function LockedPanel({ reason, symbol }: { reason?: string; symbol?: stri
           <p className="muted small">Markets only shows prices it's allowed to show. Canadian listings outside the core list need a licensed data feed, which isn't connected yet. You can still watch it and log trades.</p>
         </> : <>
           <h3>See real prices for {symbol ?? 'this asset'}</h3>
-          <p className="muted small">{signedIn ? 'Connect your own data key and Markets shows you real prices, charts, dividends and dip alerts. One EODHD key covers US and Canadian stocks and ETFs. Your key is encrypted and only ever used for you.' : 'Create a free account, then connect your own data key to see real US and Canadian prices, charts and dip alerts. It takes a couple of minutes.'}</p>
+          <p className="muted small">{signedIn ? 'Connect your own data key and Markets shows you real prices, charts and dip alerts. Questrade customers get Canadian and US prices free; anyone can get US prices free with Alpaca. Your key is encrypted and only ever used for you.' : 'Create a free account, then connect a free data key (Questrade or Alpaca) to see real prices, charts and dip alerts. It takes a couple of minutes.'}</p>
           {u.to && <Link to={u.to} className="btn primary"><Icon name={signedIn ? 'key' : 'lock'} size={16} />{signedIn ? 'Connect a data key' : 'Create a free account'}</Link>}
         </>}
       </div>

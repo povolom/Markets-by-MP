@@ -3,8 +3,9 @@ import { all, first, run } from './db';
 
 export interface AlpacaCreds { keyId: string; secret: string }
 export interface EodhdCreds { token: string }
-export interface Keys { alpaca?: AlpacaCreds; eodhd?: EodhdCreds & { dailyLimit: number | null } }
-export type Provider = 'alpaca' | 'eodhd';
+export interface QuestradeCreds { refreshToken: string; accessToken: string | null; apiServer: string | null; expiresAt: number }
+export interface Keys { alpaca?: AlpacaCreds; eodhd?: EodhdCreds & { dailyLimit: number | null }; questrade?: QuestradeCreds }
+export type Provider = 'alpaca' | 'eodhd' | 'questrade';
 export interface Connection { provider: Provider; hint: string; status: string; createdAt: string; checkedAt: string | null; meta: Record<string, unknown> | null }
 
 const enc = new TextEncoder(), dec = new TextDecoder();
@@ -42,6 +43,7 @@ export async function userKeys(db: D1Database, secret: string, userId: string): 
     if (!creds) continue;
     if (r.provider === 'alpaca') keys.alpaca = creds;
     if (r.provider === 'eodhd') keys.eodhd = { ...creds, dailyLimit: (r.meta ? JSON.parse(r.meta).dailyLimit : null) ?? null };
+    if (r.provider === 'questrade') keys.questrade = creds;
   }
   if (cache.size > 2000) cache.clear();
   cache.set(userId, { until: Date.now() + 60_000, keys });
@@ -49,12 +51,28 @@ export async function userKeys(db: D1Database, secret: string, userId: string): 
 }
 export const forgetKeys = (userId: string) => cache.delete(userId);
 
-export async function saveKey(db: D1Database, secret: string, userId: string, provider: Provider, creds: AlpacaCreds | EodhdCreds, hint: string, meta: Record<string, unknown> | null = null) {
+export async function saveKey(db: D1Database, secret: string, userId: string, provider: Provider, creds: AlpacaCreds | EodhdCreds | QuestradeCreds, hint: string, meta: Record<string, unknown> | null = null) {
   const { ciphertext, iv } = await seal(secret, creds);
   await run(db, `INSERT INTO data_connections (user_id, provider, ciphertext, iv, hint, status, checked_at, meta) VALUES (?, ?, ?, ?, ?, 'ok', strftime('%Y-%m-%dT%H:%M:%fZ','now'), ?)
     ON CONFLICT(user_id, provider) DO UPDATE SET ciphertext = excluded.ciphertext, iv = excluded.iv, hint = excluded.hint, status = 'ok', checked_at = excluded.checked_at, meta = excluded.meta`, userId, provider, ciphertext, iv, hint, meta ? JSON.stringify(meta) : null);
   forgetKeys(userId);
 }
+/** Questrade rotates its refresh token on every use: store the new session without touching anything else. */
+export async function updateQuestrade(db: D1Database, secret: string, userId: string, s: QuestradeCreds) {
+  const { ciphertext, iv } = await seal(secret, s);
+  await run(db, "UPDATE data_connections SET ciphertext = ?, iv = ?, status = 'ok', checked_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE user_id = ? AND provider = 'questrade'", ciphertext, iv, userId);
+  forgetKeys(userId);
+}
+/** The latest stored Questrade session, read fresh (another request may have just rotated it). */
+export async function loadQuestrade(db: D1Database, secret: string, userId: string): Promise<QuestradeCreds | null> {
+  const row = await first<{ ciphertext: string; iv: string }>(db, "SELECT ciphertext, iv FROM data_connections WHERE user_id = ? AND provider = 'questrade' AND status = 'ok'", userId);
+  return row ? open<QuestradeCreds>(secret, row.ciphertext, row.iv).catch(() => null) : null;
+}
+/** Questrade connections not refreshed for a while, so the scheduled job can keep their tokens alive. */
+export async function staleQuestrade(db: D1Database, olderThanHours: number) {
+  return all<{ user_id: string }>(db, "SELECT user_id FROM data_connections WHERE provider = 'questrade' AND status = 'ok' AND (checked_at IS NULL OR checked_at < strftime('%Y-%m-%dT%H:%M:%fZ','now', ?))", `-${olderThanHours} hours`);
+}
+
 export async function markInvalid(db: D1Database, userId: string, provider: Provider) {
   await run(db, "UPDATE data_connections SET status = 'invalid', checked_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE user_id = ? AND provider = ?", userId, provider);
   forgetKeys(userId);

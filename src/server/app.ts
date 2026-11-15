@@ -9,7 +9,8 @@ import { audienceOf, edgeCache, publicCors, rateLimit, requestId, sameOrigin } f
 import { getRegistry, withPersonal, type Registry } from './providers/registry';
 import { alpacaInfo, createAlpaca } from './providers/alpaca';
 import { createEodhd, eodhdInfo } from './providers/eodhd';
-import { markInvalid, userKeys } from './data-keys';
+import { createQuestrade, questradeInfo } from './providers/questrade';
+import { loadQuestrade, markInvalid, updateQuestrade, userKeys } from './data-keys';
 import { CHANGELOG, publicRoutes } from './routes/public';
 import { privateRoutes } from './routes/private';
 
@@ -38,13 +39,15 @@ export function createApi(resolveSession: SessionResolver) {
     // Scheduled alert checks skip keys on very small daily allowances (EODHD's free plan), so the cron
     // doesn't use up calls the person needs for browsing. "Check my rules now" still uses the key.
     const eodhd = keys.eodhd && !(opts.scheduled && keys.eodhd.dailyLimit != null && keys.eodhd.dailyLimit <= 100) ? keys.eodhd : undefined;
-    if (!keys.alpaca && !eodhd) { personal.delete(userId); return ms.app; }
-    const sig = `${keys.alpaca?.keyId ?? ''}|${eodhd?.token.slice(-8) ?? ''}`;
+    if (!keys.alpaca && !eodhd && !keys.questrade) { personal.delete(userId); return ms.app; }
+    const sig = `${keys.alpaca?.keyId ?? ''}|${eodhd?.token.slice(-8) ?? ''}|${keys.questrade ? 'q' : ''}`;
     const hit = personal.get(userId); if (hit && hit.sig === sig) return hit.m;
     const r = ms.registry;
-    const reset = (p: 'alpaca' | 'eodhd') => () => { void markInvalid(env.DB, userId, p); personal.delete(userId); };
-    const m = createMarket(withPersonal(r.market, { alpaca: keys.alpaca && createAlpaca(keys.alpaca, reset('alpaca')), eodhd: eodhd && createEodhd(eodhd.token, reset('eodhd')) }),
-      [...r.providers, ...(keys.alpaca ? [alpacaInfo] : []), ...(eodhd ? [eodhdInfo] : [])], { audience: 'app', sourceOf: id => r.sourceOf(id), namespace: `u:${userId}` });
+    const reset = (p: 'alpaca' | 'eodhd' | 'questrade') => () => { void markInvalid(env.DB, userId, p); personal.delete(userId); };
+    const secret = env.DATA_KEY_SECRET ?? env.BETTER_AUTH_SECRET;
+    const questrade = keys.questrade && createQuestrade(userId, keys.questrade, { persist: s => updateQuestrade(env.DB, secret, userId, s), reload: () => loadQuestrade(env.DB, secret, userId), onInvalid: reset('questrade') });
+    const m = createMarket(withPersonal(r.market, { alpaca: keys.alpaca && createAlpaca(keys.alpaca, reset('alpaca')), eodhd: eodhd && createEodhd(eodhd.token, reset('eodhd')), questrade }),
+      [...r.providers, ...(keys.alpaca ? [alpacaInfo] : []), ...(eodhd ? [eodhdInfo] : []), ...(questrade ? [questradeInfo] : [])], { audience: 'app', sourceOf: id => r.sourceOf(id), namespace: `u:${userId}` });
     if (personal.size > 500) personal.clear();
     if (!opts.scheduled) personal.set(userId, { sig, m });
     return m;

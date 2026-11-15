@@ -7323,6 +7323,81 @@
     }
    }
   },
+  "/api/v1/data-keys/questrade": {
+   "put": {
+    "tags": [
+     "Account"
+    ],
+    "summary": "Connect your Questrade personal API app: Canadian and US prices, free for Questrade customers",
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "token": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 256
+         }
+        },
+        "required": [
+         "token"
+        ]
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Connect your Questrade personal API app: Canadian and US prices, free for Questrade customers",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {}
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Invalid request",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sign in required",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Not found, or not yours",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Error"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/data-keys/{provider}": {
    "delete": {
     "tags": [

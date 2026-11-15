@@ -34,6 +34,17 @@ export function AssetRowBody({ inst, quote, showQuote = true }: { inst: Inst; qu
   );
 }
 
+/** The same company on other exchanges, e.g. a TSX stock that also trades in New York. */
+export function OtherListings({ ids, prominent }: { ids?: string[]; prominent?: boolean }) {
+  if (!ids?.length) return null;
+  return (
+    <span className={`row wrap other-listings ${prominent ? 'prominent' : ''}`}>
+      <span className="faint">Also trades as</span>
+      {ids.map(id => { const mic = id.split('.')[0].toUpperCase(); const sym = id.slice(id.indexOf('.') + 1).toUpperCase(); return <a key={id} href={`/assets/${id}`} className="chip">{sym} · {exchangeShort(mic)} · {mic === 'XTSE' ? 'CAD' : 'USD'}</a>; })}
+    </span>
+  );
+}
+
 export function NoMatches({ q }: { q: string }) {
   return <div className="empty compact"><h3>No matches for "{q}"</h3><p>Markets covers every US-listed stock and ETF, major TSX listings, the top 250 crypto assets and major currencies. Try the ticker or part of the company name.</p></div>;
 }

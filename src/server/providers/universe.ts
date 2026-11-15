@@ -56,6 +56,25 @@ function build() {
 }
 
 export const ENTRIES = build();
+
+// Cross-listings: the same company on the TSX and a US exchange, matched by name.
+{
+  const core = (n: string) => n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\(the\)|\bthe\b/g, ' ').replace(/\bclass [a-z]\b.*$/, '').replace(/\(adr\)/, '')
+    .replace(/[^a-z0-9 ]+/g, ' ').replace(/\b(inc|incorporated|corp|corporation|ltd|limited|co|company|plc|new|common|shares|voting|subordinate)\b/g, ' ').replace(/\s+/g, ' ').trim();
+  const us = new Map<string, Entry[]>();
+  for (const e of ENTRIES.values()) {
+    if (e.inst.assetClass !== 'stock' || e.inst.country !== 'US') continue;
+    const k = core(e.inst.name); if (k.length < 4) continue;
+    us.set(k, [...(us.get(k) ?? []), e]);
+  }
+  for (const e of ENTRIES.values()) {
+    if (e.inst.assetClass !== 'stock' || e.inst.exchange !== 'XTSE') continue;
+    const match = us.get(core(e.inst.name));
+    if (!match || match.length > 2) continue;
+    e.inst.otherListings = match.map(m => m.inst.id);
+    for (const m of match) m.inst.otherListings = [...(m.inst.otherListings ?? []), e.inst.id];
+  }
+}
 export const INSTRUMENTS: Instrument[] = [...ENTRIES.values()].map(e => e.inst);
 /** The curated set: used where scanning everything would be too slow (screeners, "similar"). */
 export const FEATURED: Instrument[] = [...ENTRIES.values()].filter(e => e.curated).map(e => e.inst);

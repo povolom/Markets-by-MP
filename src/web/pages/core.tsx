@@ -9,6 +9,7 @@ import { InstrumentPicker } from '../components/InstrumentPicker';
 import { AssetCell, Change, ClassLabel, DataBadge, Dialog, Empty, ErrorState, Icon, Loading, LockedPanel, LockedPrice, Price, Seg, Spark, useToast } from '../components/ui';
 import { RuleDialog } from './dips';
 import { AddAssets } from '../components/AddAssets';
+import { OtherListings } from '../components/AssetSearch';
 
 // ---------------- Overview ----------------
 export function Overview() {
@@ -201,6 +202,7 @@ export function Asset({ id, signedIn }: { id: string; signedIn: boolean }) {
           <div className="row wrap"><ClassLabel c={i.assetClass} /><span className="faint">{i.symbol} · {i.exchangeName} · {i.currency}</span></div>
           <h1>{i.name}</h1>
           <LockedPrice reason={lockErr.details?.reason} size="lg" />
+          <OtherListings ids={i.otherListings} prominent />
         </div>
       </div>
       <LockedPanel reason={lockErr.details?.reason} symbol={i.symbol} />
@@ -215,6 +217,7 @@ export function Asset({ id, signedIn }: { id: string; signedIn: boolean }) {
         <div className="stack-sm">
           <div className="row wrap"><ClassLabel c={i.assetClass} /><span className="faint">{i.symbol} · {i.exchangeName} · {i.currency}</span>{!i.tradable && <span className="chip warn">Not directly purchasable</span>}</div>
           <h1>{i.name}</h1>
+          <OtherListings ids={i.otherListings} />
           {q ? <div className="row wrap" style={{ alignItems: 'baseline' }}><span className="num" style={{ fontSize: 32, fontWeight: 750, letterSpacing: '-0.02em' }}>{priceFmt(q.price)}</span><span className="faint">{q.currency}</span><Change abs={q.change} pct={q.changePct} size={16} /><span className="faint">today</span></div> : <Loading rows={1} />}
           {q && <div className="row wrap"><span className="chip">{SESSION_LABEL[q.session]}</span><DataBadge meta={q.meta} /></div>}
         </div>

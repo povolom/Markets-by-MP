@@ -4,6 +4,8 @@ import { createAuth } from './server/auth';
 import { createApi } from './server/app';
 import type { Env } from './server/env';
 import { evaluateAll } from './server/jobs/alerts';
+import { markInvalid, staleQuestrade, updateQuestrade } from './server/data-keys';
+import { redeemQuestrade } from './server/providers/questrade';
 import { errorResponse, ApiError } from './server/http';
 
 const { app, marketFor } = createApi(async c => {
@@ -17,9 +19,22 @@ app.on(['GET', 'POST'], '/api/auth/*', async c => {
 });
 app.get('/api/auth', c => errorResponse(c, new ApiError(404, 'not_found', 'See /api/v1/docs.')));
 
+/** Questrade refresh tokens expire if unused for a few days; refresh quiet connections once a day. */
+async function keepQuestradeAlive(env: Env) {
+  const secret = env.DATA_KEY_SECRET ?? env.BETTER_AUTH_SECRET;
+  const { loadQuestrade } = await import('./server/data-keys');
+  for (const { user_id } of (await staleQuestrade(env.DB, 24)).slice(0, 50)) {
+    const cur = await loadQuestrade(env.DB, secret, user_id); if (!cur) continue;
+    const next = await redeemQuestrade(cur.refreshToken);
+    if (next === 'invalid') await markInvalid(env.DB, user_id, 'questrade');
+    else if (next !== 'unavailable') await updateQuestrade(env.DB, secret, user_id, next);
+  }
+}
+
 export default {
   fetch: app.fetch,
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
     ctx.waitUntil(evaluateAll(env.DB, userId => marketFor(env, userId, { scheduled: true })));
+    ctx.waitUntil(keepQuestradeAlive(env));
   },
 } satisfies ExportedHandler<Env>;

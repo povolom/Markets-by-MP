@@ -26,6 +26,11 @@ beforeAll(() => setFetcher(async url => {
     if (url.includes('/eod/')) return json(Array.from({ length: 30 }, (_, i) => ({ date: day(40 - i).toISOString().slice(0, 10), open: 140, high: 150, low: 139, close: 140 + i / 2, adjusted_close: 139 + i / 2, volume: 1e6 })));
     if (url.includes('/div/')) return json([{ date: '2026-08-01', paymentDate: '2026-08-15', value: 0.25, currency: 'CAD' }]);
   }
+  if (url.includes('questrade.com')) {
+    if (url.includes('/v1/symbols?names=')) return json({ symbols: [{ symbol: 'GSY.TO', symbolId: 101, prevDayClosePrice: 180, highPrice52: 200, lowPrice52: 120, currency: 'CAD' }, { symbol: 'SOFI', symbolId: 202, prevDayClosePrice: 21, highPrice52: 25, lowPrice52: 8, currency: 'USD' }] });
+    if (url.includes('/v1/markets/quotes')) return json({ quotes: [{ symbol: url.includes('ids=101') ? 'GSY.TO' : 'SOFI', symbolId: url.includes('ids=101') ? 101 : 202, lastTradePrice: url.includes('ids=101') ? 183.6 : 21.5, lastTradeTime: new Date().toISOString(), highPrice: 0, lowPrice: 0, delay: 15 }] });
+    if (url.includes('/v1/markets/candles/')) return json({ candles: Array.from({ length: 30 }, (_, i) => ({ start: day(40 - i).toISOString(), end: day(40 - i).toISOString(), open: 170, high: 185, low: 168, close: 170 + i / 2, volume: 1e5 })) });
+  }
   if (url.includes('frankfurter')) {
     const rates: Record<string, Record<string, number>> = {};
     for (let i = 10; i >= 1; i--) rates[day(i).toISOString().slice(0, 10)] = { CAD: 1.40 + i / 1000, EUR: 0.9, GBP: 0.78, JPY: 150, AUD: 1.5, CHF: 0.88, MXN: 18, CNY: 7.2, INR: 84 };
@@ -137,5 +142,29 @@ describe('one key for every exchange (EODHD)', () => {
     expect(divs.body.data[0]).toMatchObject({ exDate: '2026-08-01', amount: '0.25', status: 'paid' });
     const hist = await get('/api/v1/assets/xtse.shop/history?range=3M', true, 'ana');
     expect(hist.body.data.at(-1)).toMatchObject({ close: '154.5', adjClose: '153.5' });
+  });
+});
+
+describe('Questrade and smart routing', () => {
+  beforeAll(() => { addUser(env.DB as any, 'qt'); });
+  it('unlocks Canadian listings through a Questrade token and routes each asset to the best key', async () => {
+    const put = await send('PUT', '/api/v1/data-keys/questrade', 'qt', { token: 'TESTQUESTRADETOKEN1' });
+    expect(put.status).toBe(200);
+    expect(put.body.data).toMatchObject({ provider: 'questrade', status: 'ok' });
+    const gsy = await get('/api/v1/assets/xtse.gsy/quote', true, 'qt');
+    expect(gsy.status).toBe(200);
+    expect(gsy.body.data).toMatchObject({ price: '183.60', previousClose: '180.00', currency: 'CAD', meta: { provider: 'questrade', delaySeconds: 900 } });
+    // US goes to Questrade too when it's the only key.
+    expect((await get('/api/v1/assets/xnas.sofi/quote', true, 'qt')).body.data.meta.provider).toBe('questrade');
+    // Adding Alpaca moves US stocks to Alpaca; Canada stays on Questrade.
+    await send('PUT', '/api/v1/data-keys/alpaca', 'qt', { keyId: 'TESTKEY0000002', secret: 'TESTSECRET00000000000000' });
+    expect((await get('/api/v1/assets/xnas.sofi/quote', true, 'qt')).body.data.meta.provider).toBe('alpaca');
+    expect((await get('/api/v1/assets/xtse.gsy/quote', true, 'qt')).body.data.meta.provider).toBe('questrade');
+    const hist = await get('/api/v1/assets/xtse.gsy/history?range=3M', true, 'qt');
+    expect(hist.body.data.length).toBeGreaterThan(20);
+  });
+  it('links TSX companies to their New York listing', async () => {
+    const r = await get('/api/v1/assets/xtse.cnr', true);
+    expect(r.body.data.otherListings).toContain('xnys.cni');
   });
 });

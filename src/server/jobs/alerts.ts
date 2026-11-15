@@ -5,6 +5,7 @@ import { all, first, stmt } from '../db';
 import { newId } from '../http';
 import type { Market } from '../market';
 import { summarize } from '../portfolio-service';
+import { localParts, sessionStatus } from '../../domain/market-hours';
 
 export interface RuleRow {
   id: string; user_id: string; name: string; scope: 'instrument' | 'watchlist' | 'holdings'; instrument_id: string | null; watchlist_id: string | null; portfolio_id: string | null;
@@ -30,13 +31,16 @@ export async function ruleTargets(db: D1Database, m: Market, r: RuleRow): Promis
   return [];
 }
 
-export async function evaluateUser(db: D1Database, m: Market, userId: string, now = new Date()) {
+export async function evaluateUser(db: D1Database, m: Market, userId: string, now = new Date(), opts: { scheduled?: boolean } = {}) {
   const rules = await all<RuleRow>(db, 'SELECT * FROM alert_rules WHERE user_id = ? AND active = 1', userId);
   let fired = 0;
   const results: { ruleId: string; instrumentId: string; matched: boolean; fired: boolean; suppressedBy?: string; explanation: string; unavailable?: string }[] = [];
   for (const r of rules) {
     for (const t of await ruleTargets(db, m, r)) {
       const inst = m.lookup(t.id); if (!inst) continue;
+      // Scheduled checks skip markets that are closed (except the hour after the close), which saves the
+      // person's data-key calls without missing anything: prices don't move while a market is shut.
+      if (opts.scheduled && inst.assetClass !== 'crypto' && sessionStatus(inst.exchange, inst.assetClass, now) === 'closed' && ![16, 17].includes(localParts(now, inst.timezone).hour)) continue;
       let bars, q;
       try { [bars, q] = await Promise.all([m.fullHistory(t.id), m.quote(t.id)]); }
       catch (e) { results.push({ ruleId: r.id, instrumentId: t.id, matched: false, fired: false, explanation: 'No price available', unavailable: (e as Error).message }); continue; }
@@ -62,7 +66,7 @@ export async function evaluateAll(db: D1Database, marketFor: (userId: string) =>
   const users = await all<{ user_id: string }>(db, 'SELECT DISTINCT user_id FROM alert_rules WHERE active = 1 LIMIT ?', maxUsers);
   let fired = 0, failed = 0;
   for (const u of users) {
-    try { fired += (await evaluateUser(db, await marketFor(u.user_id), u.user_id)).fired; }
+    try { fired += (await evaluateUser(db, await marketFor(u.user_id), u.user_id, new Date(), { scheduled: true })).fired; }
     catch (e) { failed++; console.error(JSON.stringify({ level: 'error', job: 'alerts', error: String((e as Error).message) })); }
   }
   console.log(JSON.stringify({ level: 'info', job: 'alerts', users: users.length, fired, failed }));

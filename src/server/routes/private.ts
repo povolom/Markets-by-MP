@@ -15,6 +15,7 @@ import { DEMO_POSTS, seedDemo } from '../demo-seed';
 import { listConnections, removeConnection, saveKey } from '../data-keys';
 import { verifyAlpaca } from '../providers/alpaca';
 import { verifyEodhd } from '../providers/eodhd';
+import { redeemQuestrade } from '../providers/questrade';
 import { SAMPLE_PORTFOLIOS, sampleView, sharedRow, sharedView, viewerHoldings } from '../community';
 import * as S from '../schemas';
 
@@ -549,6 +550,16 @@ export function privateRoutes(market: (c?: any) => Market) {
     if (check.status === 'unavailable') throw new ApiError(502, 'upstream_error', 'Couldn\'t reach EODHD to check the key. Try again in a minute.');
     await saveKey(c.env.DB, c.env.DATA_KEY_SECRET ?? c.env.BETTER_AUTH_SECRET, u, 'eodhd', { token }, token.slice(-4), { plan: check.plan ?? null, dailyLimit: check.dailyLimit ?? null, covers: 'US and Canadian stocks and ETFs, main indexes' });
     return out(c, { data: (await listConnections(c.env.DB, u)).find(x => x.provider === 'eodhd') });
+  });
+  app.openapi(route('put', '/data-keys/questrade', 'Account', 'Connect your Questrade personal API app: Canadian and US prices, free for Questrade customers', { body: { content: { 'application/json': { schema: z.object({ token: z.string().trim().min(10).max(256) }) } } } }), async c => {
+    const u = uid(c);
+    if (c.get('isAnonymous')) throw new ApiError(403, 'forbidden', 'Create an account first. Demo workspaces can\'t store data keys.');
+    const { token } = c.req.valid('json');
+    const session = c.env.ENVIRONMENT === 'test' && token.startsWith('TEST') ? { refreshToken: `${token}-r1`, accessToken: 'test-access', apiServer: 'https://api01.iq.questrade.com/', expiresAt: Date.now() + 1500_000 } : await redeemQuestrade(token);
+    if (session === 'invalid') throw new ApiError(400, 'bad_request', 'Questrade didn\'t accept that token. Generate a new one in Questrade\'s App Hub (tokens work once and expire if unused) and paste it straight away.');
+    if (session === 'unavailable') throw new ApiError(502, 'upstream_error', 'Couldn\'t reach Questrade to check the token. Try again in a minute.');
+    await saveKey(c.env.DB, c.env.DATA_KEY_SECRET ?? c.env.BETTER_AUTH_SECRET, u, 'questrade', session, token.slice(-4), { covers: 'Canadian and US stocks and ETFs' });
+    return out(c, { data: (await listConnections(c.env.DB, u)).find(x => x.provider === 'questrade') });
   });
   app.openapi(route('delete', '/data-keys/{provider}', 'Account', 'Disconnect a data key', { params: IdParam('provider') }), async c => { await removeConnection(c.env.DB, uid(c), c.req.valid('param').provider); return out(c, { ok: true }); });
 

@@ -4,7 +4,7 @@ import { dateFmt } from '../lib/format';
 import { Link } from '../lib/router';
 import { Icon, useToast } from './ui';
 
-interface Conn { provider: 'eodhd' | 'alpaca'; hint: string; status: string; createdAt: string; meta: { plan?: string | null; dailyLimit?: number | null; covers?: string } | null }
+interface Conn { provider: 'eodhd' | 'alpaca' | 'questrade'; hint: string; status: string; createdAt: string; meta: { plan?: string | null; dailyLimit?: number | null; covers?: string } | null }
 
 /** Connect your own data key. One EODHD key covers US and Canadian stocks, ETFs and indexes; a free Alpaca
  * key covers US only. Either way the key is encrypted and used only for you. */
@@ -12,8 +12,8 @@ export function DataKeys({ guest }: { guest: boolean }) {
   const toast = useToast();
   const conns = useApi<{ data: Conn[] }>(guest ? null : '/data-keys');
   const list = conns.data?.data ?? [];
-  const eodhd = list.find(c => c.provider === 'eodhd'), alpaca = list.find(c => c.provider === 'alpaca');
-  const [form, setForm] = useState<null | 'eodhd' | 'alpaca'>(null);
+  const eodhd = list.find(c => c.provider === 'eodhd'), alpaca = list.find(c => c.provider === 'alpaca'), questrade = list.find(c => c.provider === 'questrade');
+  const [form, setForm] = useState<null | 'eodhd' | 'alpaca' | 'questrade'>(null);
   const ref = useRef<HTMLElement>(null);
   useEffect(() => { if (location.hash === '#data') ref.current?.scrollIntoView({ block: 'start' }); }, []);
   const disconnect = async (p: string) => { await api.del(`/data-keys/${p}`); conns.reload(); toast('Disconnected. Your key was deleted.'); };
@@ -38,7 +38,7 @@ export function DataKeys({ guest }: { guest: boolean }) {
           {connected.map(c => (
             <div key={c.provider} className="conn">
               <div className="conn-main">
-                <b>{c.provider === 'eodhd' ? 'EODHD' : 'Alpaca'}</b>
+                <b>{NAMES[c.provider]}</b>
                 <span className="faint">Key •••• {c.hint} · {c.meta?.covers ?? ''} · connected {dateFmt(c.createdAt)}</span>
                 {c.provider === 'eodhd' && c.meta?.dailyLimit != null && c.meta.dailyLimit <= 100 && (
                   <p className="notice warn small"><Icon name="info" size={15} /><span>This is EODHD's free plan: {c.meta.dailyLimit} calls a day. That's enough to try it, but a watchlist uses it up quickly, and scheduled dip checks are paused to save your calls. EODHD's EOD + Intraday "All World Extended" plan covers everyday use.</span></p>
@@ -47,28 +47,58 @@ export function DataKeys({ guest }: { guest: boolean }) {
               <div className="row"><button className="btn sm" onClick={() => setForm(c.provider)}>Replace</button><button className="btn ghost sm danger" onClick={() => disconnect(c.provider)}>Disconnect</button></div>
             </div>
           ))}
-          {list.filter(c => c.status === 'invalid').map(c => <div key={c.provider} className="notice warn"><Icon name="info" /><span>{c.provider === 'eodhd' ? 'EODHD' : 'Alpaca'} stopped accepting your saved key. <button className="linkish" onClick={() => setForm(c.provider)}>Paste a new one</button></span></div>)}
+          {list.filter(c => c.status === 'invalid').map(c => <div key={c.provider} className="notice warn"><Icon name="info" /><span>{NAMES[c.provider]} stopped accepting your saved key. <button className="linkish" onClick={() => setForm(c.provider)}>Paste a new one</button></span></div>)}
 
-          {!eodhd && form !== 'eodhd' && (
-            <div className="provider-card recommended">
-              <div className="provider-top"><div><span className="chip green">Recommended</span><h3>One key for every exchange</h3></div><span className="provider-name">EODHD</span></div>
-              <ul className="provider-points">
-                <li><Icon name="check" size={15} />US and Canadian stocks and ETFs (NYSE, Nasdaq, TSX, TSX Venture) and the main indexes</li>
-                <li><Icon name="check" size={15} />Prices through the day, about 15 minutes delayed, plus history and real dividends</li>
-                <li><Icon name="check" size={15} />Free plan to try it; a paid EODHD plan for everyday use</li>
-              </ul>
-              <button className="btn primary" onClick={() => setForm('eodhd')}><Icon name="key" size={16} />Connect EODHD</button>
+          {!(questrade && alpaca) && !form && (
+            <div className="provider-grid">
+              {!questrade && <ProviderCard tag="Free · Canada + US" title="Questrade" points={['TSX, TSX Venture and US stocks and ETFs', 'No daily limit', 'For Questrade customers (any account)']} cta="Connect Questrade" onClick={() => setForm('questrade')} recommended />}
+              {!alpaca && <ProviderCard tag="Free · US" title="Alpaca" points={['Every US stock and ETF, live through the day', 'No daily limit', 'Anyone can open a free paper account']} cta="Connect Alpaca" onClick={() => setForm('alpaca')} recommended />}
+              {!eodhd && <ProviderCard tag="Paid · One key, every exchange" title="EODHD" points={['US, Canadian and other exchanges, plus main indexes and real dividends', 'Delayed about 15 minutes', 'Free plan is only 20 calls a day; paid plans from about €20/month']} cta="Connect EODHD" onClick={() => setForm('eodhd')} />}
             </div>
           )}
+          {!form && <p className="muted small">Best free setup: <b>Questrade</b> if you have it (covers Canada and the US with one key). Otherwise <b>Alpaca</b> for US stocks; Canadian stocks then show prices for the core list, and big Canadian companies link to their New York listing.</p>}
+          {form === 'questrade' && <QuestradeForm onDone={() => done('Connected. Real Canadian and US prices are on.')} onCancel={() => setForm(null)} />}
           {form === 'eodhd' && <EodhdForm onDone={() => done('Connected. Real US and Canadian prices are on.')} onCancel={() => setForm(null)} />}
-
-          {!alpaca && !eodhd && form !== 'alpaca' && <p className="muted small">Only need US stocks? <button className="linkish" onClick={() => setForm('alpaca')}>Use a free Alpaca key instead</button> (US stocks and ETFs, no Canadian listings).</p>}
           {form === 'alpaca' && <AlpacaForm onDone={() => done('Connected. Real US stock prices are on.')} onCancel={() => setForm(null)} />}
 
           <p className="faint">Keys are encrypted on Markets' server, never sent back to your browser, and only used to fetch prices for you. Disconnecting deletes them.</p>
         </div>
       )}
     </section>
+  );
+}
+
+const NAMES: Record<string, string> = { eodhd: 'EODHD', alpaca: 'Alpaca', questrade: 'Questrade' };
+
+function ProviderCard({ tag, title, points, cta, onClick, recommended }: { tag: string; title: string; points: string[]; cta: string; onClick: () => void; recommended?: boolean }) {
+  return (
+    <div className={`provider-card ${recommended ? 'recommended' : ''}`}>
+      <div className="provider-top"><div><span className={`chip ${recommended ? 'green' : ''}`}>{tag}</span><h3>{title}</h3></div></div>
+      <ul className="provider-points">{points.map(p => <li key={p}><Icon name="check" size={15} />{p}</li>)}</ul>
+      <button className={`btn ${recommended ? 'primary' : ''}`} onClick={onClick}><Icon name="key" size={16} />{cta}</button>
+    </div>
+  );
+}
+
+function QuestradeForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => void }) {
+  const [token, setToken] = useState(''); const [busy, setBusy] = useState(false); const [err, setErr] = useState('');
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault(); setBusy(true); setErr('');
+    try { await api.put('/data-keys/questrade', { token: token.trim() }); onDone(); } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
+  };
+  return (
+    <div className="provider-card">
+      <ol className="steps">
+        <li><b>In Questrade, open the API centre (App Hub)</b> and register a personal app. Give it market-data access only; Markets never needs account or trading access. <a href="https://www.questrade.com/api/documentation/getting-started" target="_blank" rel="noreferrer">Questrade's guide <Icon name="external" size={13} /></a></li>
+        <li><b>Generate a new token</b> for that app (manual authorization) and copy it.</li>
+        <li><b>Paste it here right away.</b> Tokens work once. Markets signs in with it, then keeps the connection refreshed for you.</li>
+      </ol>
+      <form className="datakeys-form single" onSubmit={submit}>
+        <label className="field">Questrade token<input className="input mono" type="password" autoComplete="off" spellCheck={false} value={token} onChange={e => setToken(e.target.value)} required /></label>
+        {err && <p className="notice warn" role="alert">{err}</p>}
+        <div className="row wrap"><button className="btn primary" disabled={busy || token.trim().length < 10}>{busy ? 'Signing in to Questrade…' : 'Connect'}</button><button type="button" className="btn ghost" onClick={onCancel}>Cancel</button></div>
+      </form>
+    </div>
   );
 }
 

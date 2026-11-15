@@ -512,3 +512,10 @@ a.locked:hover .locked-tag { color: var(--accent-text); border-color: color-mix(
 .provider-points svg { color: var(--accent-text); flex: none; margin-top: 3px; }
 .provider-card .btn.primary { justify-self: start; }
 .datakeys-form.single { grid-template-columns: minmax(0, 1fr); max-width: 520px; }
+.provider-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.provider-grid .provider-card .btn { justify-self: start; margin-top: auto; }
+.provider-grid .provider-card { align-content: start; }
+.other-listings { gap: 6px; }
+.other-listings .chip { text-decoration: none; }
+.other-listings .chip:hover { border-color: var(--border-strong); color: var(--text); }
+.other-listings.prominent .chip { background: var(--accent-soft); color: var(--accent-text); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }

@@ -29,6 +29,7 @@ export interface Instrument {
   industry: string | null;
   tradable: boolean;           // false for indexes: they are not directly purchasable
   description: string;
+  otherListings?: string[];    // the same company on another exchange, e.g. a TSX stock also listed in New York
 }
 
 export interface Bar {
